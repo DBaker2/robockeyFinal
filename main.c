@@ -162,7 +162,7 @@ bool find_position(unsigned int data[]) {
     float ox = (Ax + Cx)/2;
     float oy = (Ay + Cy)/2;
 
-    // calculate star axes
+    // calculate star axes (x axis may be flipped, not sure)
     float y_axis[2] = {(Ax-ox)/(sqrt(powf((Ax-ox),2) + powf((Ay-oy),2))), (Ay-oy)/(sqrt(powf((Ax-ox),2) + powf((Ay-oy),2)))};
     float x_axis[2] = {-(Ay-oy)/(sqrt(powf((Ax-ox),2) + powf((Ay-oy),2))), (Ax-ox)/(sqrt(powf((Ax-ox),2) + powf((Ay-oy),2)))};
 
