@@ -2,7 +2,7 @@
 // M2 data bus subsystem
 // version: 2.0
 // date: May 30, 2011
-// author: J. Fiene
+// author: J. Fiene & David Baker
 // -----------------------------------------------------------------------------
 
 #include "m_bus.h"
