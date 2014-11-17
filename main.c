@@ -23,7 +23,7 @@ char send_data[PACKET_LENGTH] = {0,0}; // data to be sent to game controller
 volatile bool timer1_flag = 0; // set high when timer1 overflows
 float pixel_cm_conversion = 10; // conversion from pixels to cm, TBD
 bool valid = 0; // true when position m_wii data is valid
-
+bool deleteMe = 0;
 
 void init(void);
 bool find_position(unsigned int data[]);
