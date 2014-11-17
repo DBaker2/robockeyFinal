@@ -18,7 +18,7 @@
 
 unsigned int star_data[11] = {0,0,0,0,0,0,0,0,0,0,0};
 float robot_position[2] = {0,0}; // vector for robot position (x and y)
-float robot_orientation[2] = {0,0}; // vector for robot orientation (direction fo y-axis)
+float robot_orientation= 0; // vector for robot orientation (direction fo y-axis)
 char send_data[PACKET_LENGTH] = {0,0}; // data to be sent to game controller
 volatile bool timer1_flag = 0; // set high when timer1 overflows
 float pixel_cm_conversion = 10; // conversion from pixels to cm, TBD
@@ -162,28 +162,20 @@ bool find_position(unsigned int data[]) {
     float ox = (Ax + Cx)/2;
     float oy = (Ay + Cy)/2;
 
-    // calculate star axes (x axis may be flipped, not sure)
-    float y_axis[2] = {(Ax-ox)/(sqrt(powf((Ax-ox),2) + powf((Ay-oy),2))), (Ay-oy)/(sqrt(powf((Ax-ox),2) + powf((Ay-oy),2)))};
-    float x_axis[2] = {-(Ay-oy)/(sqrt(powf((Ax-ox),2) + powf((Ay-oy),2))), (Ax-ox)/(sqrt(powf((Ax-ox),2) + powf((Ay-oy),2)))};
+	// calculate rotation from robot frame to star frame
+	float theta = (-1)*atan2((Ax-Cx),(Ay-Cy))		// these arguments should be doubles, check here if there is a problem
 
-    // calculate position vectors from star origin to robot
-    float rx = 512 - ox;
-    float ry = 512 - oy;
-    float r_vect[2] = {rx,ry};
-    
-    // calculate x and y position
-    float x = dot(r_vect, x_axis);
-    float y = dot(r_vect, y_axis);
-    
-    // calculate robot orientation
-    float x_orient = dot(x_axis, robot_y_axis);
-    float y_orient = dot(y_axis, robot_y_axis);
+	// calculate robot position using output from homogeneous transform matric
+	float x = (-1)*cos(theta)*(ox-512)-sin(theta)*(oy-384);
+	float y = sin(theta)*(ox-512)-cos(theta)*(oy-384);
+	
+	// orientation measured relative to rink coordinate frame in radians, counter-clockwise
+	float orientation = (-1)*theta;
     
     // store values to arrays (defined above so the can be accessed by main, C functions can't return an array)
     robot_position[0] = pixel_cm_conversion*x; // convert from pixels to cm
     robot_position[1] = pixel_cm_conversion*y; // convert from pixels to cm
-    robot_orientation[0] = x_orient;
-    robot_orientation[1] = y_orient;
+    robot_orientation = orientation;
     
     // data is valid, return true
     return TRUE;
