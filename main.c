@@ -29,13 +29,14 @@ bool valid = 0; // true when position m_wii data is valid
 //int dutyBLeft = 0; //Percentage of duty cycle left motor
 //int dutyARight = 0; //Percentage of duty cycle right motor
 int target = 0;  //Target angle for driving across rink
-int timer0count = 327; //0xff/100
-int leftcommand[2] = {0,0}; //Duty cycle and direction of left motor
-int rightcommand[2] = {0,0}; //Duty cycle and direction of right motor
+int timer0count = 25; //0xff/100
+int leftcommand = 0; //Duty cycle and direction of left motor
+int rightcommand = 0; //Duty cycle and direction of right motor
 int State = 1;
 int postarget = 0;
 int sign = 0;
 int checkside = 0;
+int testvar = 0;
 
 void init(void);
 bool find_position(unsigned int data[]);
@@ -55,10 +56,12 @@ int main(void)
         
         switch (State) { //** Necessary states for 11/24: 1 = Wait |  2 = drive to opposite side of rink
             case 1:
-                OCR0A = 0;
-                OCR0B = 0;
+                
+                OCR4B = 0;
+                OCR4C = 0;
                 
             case 2:
+                
                 if (checkside=0) {
                     checkside = 1;
                     
@@ -74,87 +77,65 @@ int main(void)
                     }
                 }
                 while (robot_position[0]<(postarget)) {
-
-                if (robot_orientation>(4+target)) { //right spin
-                    leftcommand[0] = 50;
-                    leftcommand[1] = 1;
-                    rightcommand[0] = 50;
-                    rightcommand[1] = 0;
-                    leftmotor(leftcommand);
-                    rightmotor(rightcommand);
-                    m_green(ON);
-                }
-                if (robot_orientation<(-4+target)) { //left spin
-                    leftcommand[0] = 50;
-                    leftcommand[1] = 0;
-                    rightcommand[0] = 50;
-                    rightcommand[1] = 1;
-                    leftmotor(leftcommand);
-                    rightmotor(rightcommand);
-                    m_green(OFF);
-                }
+                    
+                    if (robot_orientation>(4+target)) { //right spin
+                        leftcommand = 50;
+                        rightcommand = -50;
+                        left_motor(leftcommand);
+                        right_motor(rightcommand);
+                        m_green(ON);
+                        
+                    }
+                    
+                    if (robot_orientation<(-4+target)) { //left spin
+                        leftcommand = -50;
+                        rightcommand = 50;
+                        left_motor(leftcommand);
+                        right_motor(rightcommand);
+                        m_green(OFF);
+                    }
+                    
                     if ((-4+target)<robot_orientation<(4+target)) { //warning: comparisons like 'X<=Y<=Z' do not have their mathematical meaning [-Wparentheses]??
-//forward
-                    leftcommand[0] = 50;
-                    leftcommand[1] = 1;
-                    rightcommand[0] = 50;
-                    rightcommand[1] = 1;
-                    leftmotor(leftcommand);
-                    rightmotor(rightcommand);
-                }
+                        //forward
+                        leftcommand = 50;
+                        rightcommand = 50;
+                        left_motor(leftcommand);
+                        right_motor(rightcommand);
+                    }
                     
                 }
             default:
                 State = 1;
                 
-
+                
                 break;
         }
     }
 }
 
 void left_motor(int leftcommand){
-    OCR0B = leftcommand[0]*timer0count;
-    if(leftcommand[1] = 1){
+    
+    if(leftcommand>0){
         set(PORTB,PIN0); //Set B0 to go forward
         clear(PORTB,PIN1);
+        OCR4B = leftcommand*timer0count;
     }
-    else{clear(PORTB,PIN0); //Set B0 to go forward
-        set(PORTB,PIN1);}
     
+    else{clear(PORTB,PIN0); //Set B0 to go forward
+        set(PORTB,PIN1);
+        OCR4B = -1*leftcommand*timer0count;}
 }
 
 void right_motor(int rightcommand){
-    OCR0A = rightcommand[0]*timer0count;
-    if(rightcommand[1] = 1){
+    if(rightcommand>0){
+        OCR4C = rightcommand*timer0count;
         set(PORTB,PIN2); //Set B2 to go forward
         clear(PORTB,PIN3);}
-    else{clear(PORTB,PIN2); //Set B2 to go forward
+    else{
+        OCR4C = -1*rightcommand*timer0count;
+        clear(PORTB,PIN2); //Set B2 to go forward
         set(PORTB,PIN3);}
 }
-
-//void motors_forward(dutyBLeft){
-//    OCR0A = dutyBLeft*timer0count;
-//    OCR0B = dutyBLeft*timer0count;
-//    set(PORTB,B0); //Set B0 to go forward
-//    clear(PORTB,B1);
-//    set(PORTB,B2); //Set B2 to go forward
-//    clear(PORTB,B3);
-//}
-
-
-//void right_spin(){
-//    
-
-
-//void left_spin(dutyBLeft){
-//    
-//    set(PORTB,B0); //Set B0 to go forward
-//    clear(PORTB,B1);
-//    clear(PORTB,B2); //Set B2 to go forward
-//    set(PORTB,B3);
-//    m_green(on);
-//}
 
 
 void init(void) {
@@ -193,27 +174,31 @@ void init(void) {
     
     // Timer 0 for PWM
     
-    OCR3A = 0; // initialize duty cycle to zero
-    ICR3 = 32760;
+    OCR4A = 0; // initialize duty cycle to zero
+    OCR4B = 0;
+    OCR4C = 250;
     
-    set(DDRB,PIN7); //Compare A pin
-    set(DDRD,PIN0); //Compare B pin
+    set(DDRC,PIN7); //Compare A pin
+    set(DDRB,PIN6); //Compare B pin
     
-    clear(TCCR0B, CS02); //  set prescaler to /8
-    set(TCCR0B, CS01); // ^
-    clear(TCCR0B, CS00); // ^
     
-    clear(TCCR0B, WGM02); // Up to 0xff, PWM mode
-    set(TCCR0A, WGM01); // ^
-    set(TCCR0A, WGM00); // ^
+    set(TCCR4B, CS43); //  set prescaler to /64
+    clear(TCCR4B, CS42); // ^
+    clear(TCCR4B, CS41); // ^
+    set(TCCR4B, CS40); // ^
     
-    //Output compare A for PWM of Left Motor
-    set(TCCR0A, COM0A1); // clear at OCR3A, set at 0xFF
-    clear(TCCR0A, COM0A0); // ^
+    clear(TCCR4D, WGM41); // Up to OCR4C, PWM mode
+    clear(TCCR4D, WGM40); // ^
     
-    //Output compare B for PWM of Left Motor
-    set(TCCR0A,COM0B1); //Clear at OCR3B, set at 0xFF
-    clear(TCCR0A, COM0B1);
+    //Output compare A for PWM of Left Motor ** PIN C6
+    set(TCCR4A, PWM4A); // clear at OCR4A, set at 0xFF
+    set(TCCR4A, COM4A1); // ^
+    clear(TCCR4A, COM4A0); // ^
+    
+    //Output compare B for PWM of Right Motor  ** PIN B6
+    set(TCCR4A, PWM4B); // clear at OCR4B, set at 0xFF
+    set(TCCR4A, COM4B1); // ^
+    clear(TCCR4A, COM4B0); // ^
     
 }
 
