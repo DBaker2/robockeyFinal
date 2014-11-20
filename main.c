@@ -30,11 +30,12 @@ bool valid = 0; // true when position m_wii data is valid
 //int dutyARight = 0; //Percentage of duty cycle right motor
 int target = 0;  //Target angle for driving across rink
 int timer0count = 327; //0xff/100
-int leftcommand = [0 0]; //Duty cycle and direction of left motor
-int rightcommand = [0 0]; //Duty cycle and direction of right motor
+int leftcommand[2] = {0,0}; //Duty cycle and direction of left motor
+int rightcommand[2] = {0,0}; //Duty cycle and direction of right motor
 int State = 1;
 int postarget = 0;
 int sign = 0;
+int checkside = 0;
 
 void init(void);
 bool find_position(unsigned int data[]);
@@ -42,13 +43,14 @@ float dot(float v1[], float v2[]);
 //void motors_forward(dutyBLeft);
 //void right_spin(dutyBLeft);
 //void left_spin(dutyARight);
-void left_motor(leftcommand);
-void right_motor(rightcommand);
+void left_motor(int leftcommand);
+void right_motor(int rightcommand);
 
 
 
 int main(void)
 {
+    init();
     while(TRUE) {
         
         switch (State) { //** Necessary states for 11/24: 1 = Wait |  2 = drive to opposite side of rink
@@ -58,71 +60,80 @@ int main(void)
                 
             case 2:
                 if (checkside=0) {
-                    checkside = 1
-                    if (position[0]<0){
+                    checkside = 1;
+                    
+                    if (robot_position[0]<0){
                         target = 0;
                         postarget = 100;
                         sign = 1;
                     }
                     
                     else {target = 180;
-                    postarget = -100
-                    sign = -1
+                        postarget = -100;
+                        sign = -1;
                     }
                 }
-                while (position[0]<(postarget) {
+                while (robot_position[0]<(postarget)) {
 
-                if (orientation>(4+target)) { //right spin
-                    leftcommand = [50 1];
-                    rightcommand = [50 0];
+                if (robot_orientation>(4+target)) { //right spin
+                    leftcommand[0] = 50;
+                    leftcommand[1] = 1;
+                    rightcommand[0] = 50;
+                    rightcommand[1] = 0;
                     leftmotor(leftcommand);
                     rightmotor(rightcommand);
-                    m_green(on);
+                    m_green(ON);
                 }
-                if (orientation<(-4+target)) { //left spin
-                    leftcommand = [50 0];
-                    rightcommand = [50 1];
+                if (robot_orientation<(-4+target)) { //left spin
+                    leftcommand[0] = 50;
+                    leftcommand[1] = 0;
+                    rightcommand[0] = 50;
+                    rightcommand[1] = 1;
                     leftmotor(leftcommand);
                     rightmotor(rightcommand);
-                    m_green(off);
+                    m_green(OFF);
                 }
-                if ((-4+target)<orientation<(4+target)) { //forward
-                    leftcommand = [50 1];
-                    rightcommand = [50 1];
+                    if ((-4+target)<robot_orientation<(4+target)) { //warning: comparisons like 'X<=Y<=Z' do not have their mathematical meaning [-Wparentheses]??
+//forward
+                    leftcommand[0] = 50;
+                    leftcommand[1] = 1;
+                    rightcommand[0] = 50;
+                    rightcommand[1] = 1;
                     leftmotor(leftcommand);
                     rightmotor(rightcommand);
                 }
                     
                 }
             default:
-                state = 1;
+                State = 1;
+                
 
                 break;
         }
     }
 }
 
-void left_motor(leftcommand){
-    OCR0B = leftcommand[0]*timer0count
-    if(leftcommand[1] = 1)
-        set(PORTB,B0); //Set B0 to go forward
-        clear(PORTB,B1);
-    
-    else{clear(PORTB,B0); //Set B0 to go forward
-        set(PORTB,B1);}
+void left_motor(int leftcommand){
+    OCR0B = leftcommand[0]*timer0count;
+    if(leftcommand[1] = 1){
+        set(PORTB,PIN0); //Set B0 to go forward
+        clear(PORTB,PIN1);
+    }
+    else{clear(PORTB,PIN0); //Set B0 to go forward
+        set(PORTB,PIN1);}
     
 }
 
-void right_motor(rightcommand){
-    OCR0A = rightcommand[0]*timer0count
-    if(rightcommand[1] = 1)
-        set(PORTB,B2); //Set B2 to go forward
-        clear(PORTB,B3);
-    else{clear(PORTB,B2); //Set B2 to go forward
-        set(PORTB,B3);}
+void right_motor(int rightcommand){
+    OCR0A = rightcommand[0]*timer0count;
+    if(rightcommand[1] = 1){
+        set(PORTB,PIN2); //Set B2 to go forward
+        clear(PORTB,PIN3);}
+    else{clear(PORTB,PIN2); //Set B2 to go forward
+        set(PORTB,PIN3);}
 }
 
-                {//void motors_forward(dutyBLeft){
+//void motors_forward(dutyBLeft){
 //    OCR0A = dutyBLeft*timer0count;
 //    OCR0B = dutyBLeft*timer0count;
 //    set(PORTB,B0); //Set B0 to go forward
@@ -144,7 +155,6 @@ void right_motor(rightcommand){
 //    set(PORTB,B3);
 //    m_green(on);
 //}
-                }
 
 
 void init(void) {
@@ -154,10 +164,10 @@ void init(void) {
     m_bus_init();
     
     //Set pins for directional motor output
-    set(DDRB,B0); //Left Motor set forward
-    set(DDRB,B1); //Left Motor clear forward
-    set(DDRB,B2); //Right Motor set forward
-    set(DDRB,B3); //Right Motor clear forward
+    set(DDRB,PIN0); //Left Motor set forward
+    set(DDRB,PIN1); //Left Motor clear forward
+    set(DDRB,PIN2); //Right Motor set forward
+    set(DDRB,PIN3); //Right Motor clear forward
     
     // open and initialize rf communications
     m_rf_open(CHANNEL, RX_ADDRESS, PACKET_LENGTH);
@@ -186,8 +196,8 @@ void init(void) {
     OCR3A = 0; // initialize duty cycle to zero
     ICR3 = 32760;
     
-    set(DDRB,B7); //Compare A pin
-    set(DDRD,D0); //Compare B pin
+    set(DDRB,PIN7); //Compare A pin
+    set(DDRD,PIN0); //Compare B pin
     
     clear(TCCR0B, CS02); //  set prescaler to /8
     set(TCCR0B, CS01); // ^
@@ -307,7 +317,7 @@ bool find_position(unsigned int data[]) {
     float oy = (Ay + Cy)/2;
 
 	// calculate rotation from robot frame to star frame
-	float theta = (-1)*atan2((Ax-Cx),(Ay-Cy))		// these arguments should be doubles, check here if there is a problem
+    float theta = (-1)*atan2((Ax-Cx),(Ay-Cy));		// these arguments should be doubles, check here if there is a problem
 
 	// calculate robot position using output from homogeneous transform matric
 	float x = (-1)*cos(theta)*(ox-512)-sin(theta)*(oy-384);
@@ -329,8 +339,8 @@ ISR(INT2_vect){
     m_rf_read(buffer,PACKET_LENGTH);
     m_red(TOGGLE);
     if (buffer[0] = 0xA1) { //If receive play command send to state 1
-        state = 2;}
-    else {state = 1}  //If received command other than play, continue to wait.
+        State = 2;}
+    else {State = 1;}  //If received command other than play, continue to wait.
 }
 //
 
