@@ -10,7 +10,7 @@
 #include "m_rf.h"
 #include "m_usb.h"
 
-#define RX_ADDRESS 0x24
+#define RX_ADDRESS 0x18
 #define TX_ADDRESS 0xDA
 #define PACKET_LENGTH 3
 #define CHANNEL 1
@@ -18,7 +18,6 @@
 
 char buffer[PACKET_LENGTH_READ] = {0,0,0,0,0,0,0,0,0,0}; //data to be received
 char send_data[PACKET_LENGTH] = {0,0,0}; // data to be sent to game controller
-
 
 unsigned int star_data[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
 float robot_position[2] = {0,0}; // vector for robot position (x and y)
@@ -46,7 +45,6 @@ float dot(float v1[], float v2[]);
 //void left_spin(dutyARight);
 void left_motor(int leftcommand);
 void right_motor(int rightcommand);
-
 
 
 int main(void)
@@ -210,9 +208,13 @@ ISR(TIMER1_OVF_vect) {
         valid = find_position(star_data); // process data to find position
         // transmit data if valid (all stars were found)
         if (valid) {
-            send_data[0] = RX_ADDRESS;
-            send_data[1] = (char)robot_position[0];
-            send_data[2] = (char)robot_position[1];
+            send_data[0] = (char)robot_position[0];
+            send_data[1] = (char)robot_position[1];
+            send_data[2] = (char)(robot_orientation*127/6.28);
+
+//            send_data[0] = RX_ADDRESS;  For fiene
+//            send_data[1] = (char)robot_position[0];
+//            send_data[2] = (char)robot_position[1];
             m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH);
         }
         timer1_flag = 0;
@@ -242,6 +244,8 @@ bool find_position(unsigned int data[]) {
     for (i = 0; i < 11; i++) {
         if (data[i] == 1023) {
             return FALSE;
+            
+            m_red(ON);
         }
     }
     
