@@ -87,7 +87,7 @@ ISR(TIMER1_OVF_vect) {
 // returns true if all stars found, and false otherwise
 bool find_position(unsigned int data[]) {
     float dist[4][4] = {{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0}}; // array for dsitances between stars
-    float robot_y_axis[2]= {0,1}; // robot reference frame y-axis
+    float robot_y_axis[2]= {1,0}; // robot reference frame y-axis
     float B_ratio = 2; // ratio of AB to CB
     float D_ratio = 1.25; // ratio of AD to CD
     float tol = .1; // tolerance to match ratio
