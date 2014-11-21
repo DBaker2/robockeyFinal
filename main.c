@@ -1,6 +1,6 @@
 /* Name: main.c
  * Author: Ben Weinreb
- * Copyright: A05 Localization
+ * Copyright: Localisation Testing
  * License: November 2014
  */
 
@@ -11,19 +11,20 @@
 #include "m_usb.h"
 
 #define RX_ADDRESS 0x18
-#define TX_ADDRESS 0xDA
-#define PACKET_LENGTH 3
-#define CHANNEL 1
+#define TX_ADDRESS 0x18
+#define PACKET_LENGTH_SEND 3
+#define CHANNEL 2
 #define PACKET_LENGTH_READ 10
 
 char buffer[PACKET_LENGTH_READ] = {0,0,0,0,0,0,0,0,0,0}; //data to be received
-char send_data[PACKET_LENGTH] = {0,0,0}; // data to be sent to game controller
+char send_data[PACKET_LENGTH_SEND] = {0,0,0}; // data to be sent to game controller
+
 
 unsigned int star_data[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
 float robot_position[2] = {0,0}; // vector for robot position (x and y)
 float robot_orientation= 0; // vector for robot orientation (direction fo y-axis)
 volatile bool timer1_flag = 0; // set high when timer1 overflows
-float pixel_cm_conversion = 10; // conversion from pixels to cm, TBD
+float pixel_cm_conversion = 1; // conversion from pixels to cm, TBD
 bool valid = 0; // true when position m_wii data is valid
 //int dutyBLeft = 0; //Percentage of duty cycle left motor
 //int dutyARight = 0; //Percentage of duty cycle right motor
@@ -47,6 +48,7 @@ void left_motor(int leftcommand);
 void right_motor(int rightcommand);
 
 
+
 int main(void)
 {
     init();
@@ -55,8 +57,58 @@ int main(void)
         switch (State) { //** Necessary states for 11/24: 1 = Wait |  2 = drive to opposite side of rink
             case 1:
                 
+                valid = find_position(star_data); // process data to find position
+                
+                if (valid) {
+                    m_green(TOGGLE);
+                }
+                
                 OCR4B = 0;
                 OCR4C = 0;
+                m_red(TOGGLE);
+//
+                send_data[0] = (char)robot_position[0];//RX_ADDRESS;
+                send_data[1] = (char)robot_position[1];
+                send_data[2] = (char)(robot_orientation*127/6.3);
+                m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND);
+                
+//                send_data[0] = 0;//RX_ADDRESS;
+//                send_data[1] = 1;//(char)robot_position[0];
+//                send_data[2] = 2;//(char)robot_position[1];
+//                m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH);
+                m_wait(80);
+
+                if(m_usb_isconnected()) {
+                    m_usb_tx_int((int)star_data[0]);
+                    m_usb_tx_string("\t");
+                    m_usb_tx_int((int)star_data[1]);
+                    m_usb_tx_string("\t");
+                    m_usb_tx_int((int)star_data[2]);
+                    m_usb_tx_string("\t");
+                    m_usb_tx_int((int)star_data[3]);
+                    m_usb_tx_string("\t");
+                    m_usb_tx_int((int)star_data[4]);
+                    m_usb_tx_string("\t");
+                    m_usb_tx_int((int)star_data[5]);
+                    m_usb_tx_string("\t");
+                    m_usb_tx_int((int)star_data[6]);
+                    m_usb_tx_string("\t");
+                    m_usb_tx_int((int)star_data[7]);
+                    m_usb_tx_string("\t");
+                    m_usb_tx_int((int)star_data[8]);
+                    m_usb_tx_string("\t");
+                    m_usb_tx_int((int)star_data[9]);
+                    m_usb_tx_string("\t");
+                    m_usb_tx_int((int)star_data[10]);
+                    m_usb_tx_string("\t");
+                    m_usb_tx_int((int)robot_position[0]);
+                    m_usb_tx_string("\t");
+                    m_usb_tx_int((int)robot_position[1]);
+                    m_usb_tx_string("\t");
+                    m_usb_tx_int((int)robot_orientation);
+                    m_usb_tx_string("\n");
+                }
+                
                 
             case 2:
                 
@@ -141,6 +193,7 @@ void init(void) {
     m_disableJTAG();
     
     m_bus_init();
+    m_usb_init();
     
     //Set pins for directional motor output
     set(DDRB,PIN0); //Left Motor set forward
@@ -149,7 +202,7 @@ void init(void) {
     set(DDRB,PIN3); //Right Motor clear forward
     
     // open and initialize rf communications
-    m_rf_open(CHANNEL, RX_ADDRESS, PACKET_LENGTH);
+    m_rf_open(CHANNEL, RX_ADDRESS, PACKET_LENGTH_SEND);
     
     // open and initialize m_wii communication
     m_wii_open();
@@ -200,33 +253,33 @@ void init(void) {
     
 }
 
-
-ISR(TIMER1_OVF_vect) {
-    timer1_flag = 1;
-    if (timer1_flag) {
-        m_wii_read(star_data);
-        valid = find_position(star_data); // process data to find position
-        // transmit data if valid (all stars were found)
-        if (valid) {
-            send_data[0] = (char)robot_position[0];
-            send_data[1] = (char)robot_position[1];
-            send_data[2] = (char)(robot_orientation*127/6.28);
-
-//            send_data[0] = RX_ADDRESS;  For fiene
-//            send_data[1] = (char)robot_position[0];
-//            send_data[2] = (char)robot_position[1];
-            m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH);
-        }
-        timer1_flag = 0;
-        // when timer oveflows (set for 10Hz), process and transmit data
-    }
-}
+//////
+//ISR(TIMER1_OVF_vect) {
+//    //m_green(TOGGLE);
+//    timer1_flag = 1;
+//    if (timer1_flag) {
+//        m_wii_read(star_data);
+//        valid = 1;//find_position(star_data); // process data to find position
+//        // transmit data if valid (all stars were found)
+//        if (valid) {
+//            send_data[0] = (char)robot_position[0];//RX_ADDRESS;
+//            send_data[1] = (char)robot_position[1];
+//            send_data[2] = (char)(robot_orientation*127/6.3);
+//            m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND);
+//        }
+//        timer1_flag = 0;
+//        // when timer oveflows (set for 10Hz), process and transmit data
+//    }
+//}
 
 
 // identify stars and find position and orientation. store to robot_position & robot_orientation
 // returns true if all stars found, and false otherwise
-                   
+
 bool find_position(unsigned int data[]) {
+   
+     m_wii_read(star_data);
+    
     float dist[4][4] = {{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0}}; // array for dsitances between stars
     float robot_y_axis[2]= {0,1}; // robot reference frame y-axis
     float B_ratio = 2; // ratio of AB to CB
@@ -244,8 +297,6 @@ bool find_position(unsigned int data[]) {
     for (i = 0; i < 11; i++) {
         if (data[i] == 1023) {
             return FALSE;
-            
-            m_red(ON);
         }
     }
     
@@ -304,16 +355,16 @@ bool find_position(unsigned int data[]) {
     // calculate origin
     float ox = (Ax + Cx)/2;
     float oy = (Ay + Cy)/2;
-
-	// calculate rotation from robot frame to star frame
+    
+    // calculate rotation from robot frame to star frame
     float theta = (-1)*atan2((Ax-Cx),(Ay-Cy));		// these arguments should be doubles, check here if there is a problem
-
-	// calculate robot position using output from homogeneous transform matric
-	float x = (-1)*cos(theta)*(ox-512)-sin(theta)*(oy-384);
-	float y = sin(theta)*(ox-512)-cos(theta)*(oy-384);
-	
-	// orientation measured relative to rink coordinate frame in radians, counter-clockwise
-	float orientation = (-1)*theta;
+    
+    // calculate robot position using output from homogeneous transform matric
+    float x = (-1)*cos(theta)*(ox-512)-sin(theta)*(oy-384);
+    float y = sin(theta)*(ox-512)-cos(theta)*(oy-384);
+    
+    // orientation measured relative to rink coordinate frame in radians, counter-clockwise
+    float orientation = (-1)*theta;
     
     // store values to arrays (defined above so the can be accessed by main, C functions can't return an array)
     robot_position[0] = pixel_cm_conversion*x; // convert from pixels to cm
@@ -324,13 +375,13 @@ bool find_position(unsigned int data[]) {
     return TRUE;
 }
 
-ISR(INT2_vect){
-    m_rf_read(buffer,PACKET_LENGTH);
-    m_red(TOGGLE);
-    if (buffer[0] = 0xA1) { //If receive play command send to state 1
-        State = 2;}
-    else {State = 1;}  //If received command other than play, continue to wait.
-}
+//ISR(INT2_vect){
+//    m_rf_read(buffer,PACKET_LENGTH_READ);
+//    m_red(TOGGLE);
+//    if (buffer[0] = 0xA1) { //If receive play command send to state 1
+//        State = 2;}
+//    else {State = 1;}  //If received command other than play, continue to wait.
+//}
 //
 
 
