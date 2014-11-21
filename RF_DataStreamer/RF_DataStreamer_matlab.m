@@ -17,13 +17,23 @@ while 1
         values(3) = str2double(fields{3});
         position = [values(1) values(2)];
         orientation = values(3)*((2*pi)/127); % in radians
+        
+        % Plot position and orientation
         plot(position(1),position(2),'*');
         hold on
         quiver(position(1),position(2),-25*sin(orientation),25*cos(orientation));
         axis equal;
-        axis([0 230 0 120]);
+        axis([-115 115 -60 60]);
+        
+        % Display position and orientation values on plot
+        strX = num2str(position(1));
+        strY = num2str(position(2));
+        strO = num2str(orientation);
+        string = ['x = ' strX ', y = ' strY ', orientation = ' strO];
+        text(0, 50, string, 'HorizontalAlignment', 'center');
         drawnow
         hold off
+        
         n = n+1
     end
 end
