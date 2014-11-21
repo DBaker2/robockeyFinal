@@ -24,7 +24,7 @@ unsigned int star_data[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
 float robot_position[2] = {0,0}; // vector for robot position (x and y)
 float robot_orientation= 0; // vector for robot orientation (direction fo y-axis)
 volatile bool timer1_flag = 0; // set high when timer1 overflows
-float pixel_cm_conversion = 1; // conversion from pixels to cm, TBD
+float pixel_cm_conversion = .3; // conversion from pixels to cm, TBD
 bool valid = 0; // true when position m_wii data is valid
 //int dutyBLeft = 0; //Percentage of duty cycle left motor
 //int dutyARight = 0; //Percentage of duty cycle right motor
@@ -39,7 +39,7 @@ int checkside = 0;
 int testvar = 0;
 
 void init(void);
-bool find_position(unsigned int data[]);
+bool find_position(unsigned int star_data[]);
 float dot(float v1[], float v2[]);
 //void motors_forward(dutyBLeft);
 //void right_spin(dutyBLeft);
@@ -56,16 +56,15 @@ int main(void)
         
         switch (State) { //** Necessary states for 11/24: 1 = Wait |  2 = drive to opposite side of rink
             case 1:
-                
+                m_wii_read(star_data);
                 valid = find_position(star_data); // process data to find position
                 
-                if (valid) {
+                if (valid) { //Toggle green light if getting 4 values from localise
                     m_green(TOGGLE);
                 }
                 
-                OCR4B = 0;
+                OCR4B = 0; //Dont move!
                 OCR4C = 0;
-                m_red(TOGGLE);
 //
                 send_data[0] = (char)robot_position[0];//RX_ADDRESS;
                 send_data[1] = (char)robot_position[1];
@@ -76,84 +75,81 @@ int main(void)
 //                send_data[1] = 1;//(char)robot_position[0];
 //                send_data[2] = 2;//(char)robot_position[1];
 //                m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH);
-                m_wait(80);
+                
+                m_red(TOGGLE);
+                
+                m_wait(300);
 
                 if(m_usb_isconnected()) {
                     m_usb_tx_int((int)star_data[0]);
                     m_usb_tx_string("\t");
                     m_usb_tx_int((int)star_data[1]);
                     m_usb_tx_string("\t");
-                    m_usb_tx_int((int)star_data[2]);
-                    m_usb_tx_string("\t");
                     m_usb_tx_int((int)star_data[3]);
                     m_usb_tx_string("\t");
                     m_usb_tx_int((int)star_data[4]);
-                    m_usb_tx_string("\t");
-                    m_usb_tx_int((int)star_data[5]);
                     m_usb_tx_string("\t");
                     m_usb_tx_int((int)star_data[6]);
                     m_usb_tx_string("\t");
                     m_usb_tx_int((int)star_data[7]);
                     m_usb_tx_string("\t");
-                    m_usb_tx_int((int)star_data[8]);
-                    m_usb_tx_string("\t");
                     m_usb_tx_int((int)star_data[9]);
                     m_usb_tx_string("\t");
                     m_usb_tx_int((int)star_data[10]);
                     m_usb_tx_string("\t");
-                    m_usb_tx_int((int)robot_position[0]);
+                    m_usb_tx_int((int)(robot_position[0]));
                     m_usb_tx_string("\t");
-                    m_usb_tx_int((int)robot_position[1]);
+                    m_usb_tx_int((int)(robot_position[1]));
                     m_usb_tx_string("\t");
-                    m_usb_tx_int((int)robot_orientation);
+                    m_usb_tx_int((int)(robot_orientation*127/6.3));
                     m_usb_tx_string("\n");
                 }
                 
                 
             case 2:
+                State = 1;
+//                if (checkside=0) {
+//                    checkside = 1;
+//                    
+//                    if (robot_position[0]<0){
+//                        target = 0;
+//                        postarget = 100;
+//                        sign = 1;
+//                    }
+//                    
+//                    else {target = 180;
+//                        postarget = -100;
+//                        sign = -1;
+//                    }
+//                }
+//                while (robot_position[0]<(postarget)) {
+//                    
+//                    if (robot_orientation>(4+target)) { //right spin
+//                        leftcommand = 50;
+//                        rightcommand = -50;
+//                        left_motor(leftcommand);
+//                        right_motor(rightcommand);
+//                        m_green(ON);
+//                        
+//                    }
+//                    
+//                    if (robot_orientation<(-4+target)) { //left spin
+//                        leftcommand = -50;
+//                        rightcommand = 50;
+//                        left_motor(leftcommand);
+//                        right_motor(rightcommand);
+//                        m_green(OFF);
+//                    }
+//                    
+//                    if ((-4+target)<robot_orientation<(4+target)) { //warning: comparisons like 'X<=Y<=Z' do not have their mathematical meaning [-Wparentheses]??
+//                        //forward
+//                        leftcommand = 50;
+//                        rightcommand = 50;
+//                        left_motor(leftcommand);
+//                        right_motor(rightcommand);
+//                    }
                 
-                if (checkside=0) {
-                    checkside = 1;
-                    
-                    if (robot_position[0]<0){
-                        target = 0;
-                        postarget = 100;
-                        sign = 1;
-                    }
-                    
-                    else {target = 180;
-                        postarget = -100;
-                        sign = -1;
-                    }
-                }
-                while (robot_position[0]<(postarget)) {
-                    
-                    if (robot_orientation>(4+target)) { //right spin
-                        leftcommand = 50;
-                        rightcommand = -50;
-                        left_motor(leftcommand);
-                        right_motor(rightcommand);
-                        m_green(ON);
-                        
-                    }
-                    
-                    if (robot_orientation<(-4+target)) { //left spin
-                        leftcommand = -50;
-                        rightcommand = 50;
-                        left_motor(leftcommand);
-                        right_motor(rightcommand);
-                        m_green(OFF);
-                    }
-                    
-                    if ((-4+target)<robot_orientation<(4+target)) { //warning: comparisons like 'X<=Y<=Z' do not have their mathematical meaning [-Wparentheses]??
-                        //forward
-                        leftcommand = 50;
-                        rightcommand = 50;
-                        left_motor(leftcommand);
-                        right_motor(rightcommand);
-                    }
-                    
-                }
+                
             default:
                 State = 1;
                 
@@ -276,9 +272,9 @@ void init(void) {
 // identify stars and find position and orientation. store to robot_position & robot_orientation
 // returns true if all stars found, and false otherwise
 
-bool find_position(unsigned int data[]) {
+bool find_position(unsigned int star_data[]) {
    
-     m_wii_read(star_data);
+    
     
     float dist[4][4] = {{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0}}; // array for dsitances between stars
     float robot_y_axis[2]= {0,1}; // robot reference frame y-axis
@@ -295,7 +291,7 @@ bool find_position(unsigned int data[]) {
     // check if all stars are found, if so proceed, if not, return false
     int i = 0;
     for (i = 0; i < 11; i++) {
-        if (data[i] == 1023) {
+        if (star_data[i] == 1023) {
             return FALSE;
         }
     }
@@ -306,7 +302,7 @@ bool find_position(unsigned int data[]) {
     float max = 0;
     for (i = 0; i < 4; i++) {
         for (j = 0; j < 4; j++) {
-            dist[i][j] = sqrt(powf((data[3*i] - data[3*j]),2) + powf((data[(3*i)+1] - data[(3*j)+1]),2));
+            dist[i][j] = sqrt(powf((star_data[3*i] - star_data[3*j]),2) + powf((star_data[(3*i)+1] - star_data[(3*j)+1]),2));
             if (dist[i][j] > max) {
                 max = dist[i][j];
                 a_guess = i;
@@ -335,7 +331,7 @@ bool find_position(unsigned int data[]) {
     for (k = 0; k < 4; k++) {
         if ((k != A) && (k != C)) {
             float r = (dist[C][k])/(dist[A][k]);
-            if ((r > (B_ratio-tol)) && (r < (B_ratio+tol))) {
+            if ((r > (B_ratio-tol)) && \\\\(r < (B_ratio+tol))) {
                 B = k;
                 D = 10 - (A + B + C);
             } else {
@@ -347,10 +343,14 @@ bool find_position(unsigned int data[]) {
     }
     
     // extract A and C positions from data
-    float Ax = data[3*A];
-    float Ay = data[(3*A)+1];
-    float Cx = data[3*C];
-    float Cy = data[(3*C)+1];
+    float Ax = star_data[3*A];
+    float Ay = star_data[(3*A)+1];
+    float Cx = star_data[3*C];
+    float Cy = star_data[(3*C)+1];
+    float Bx = star_data[3*B];
+    float By = star_data[(3*B)+1];
+    float Dx = star_data[3*D];
+    float Dy = star_data[(3*D)+1];
     
     // calculate origin
     float ox = (Ax + Cx)/2;
