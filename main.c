@@ -10,14 +10,19 @@
 #include "m_rf.h"
 #include "m_usb.h"
 
-#define RX_ADDRESS 0x18
-#define TX_ADDRESS 0x18
-#define PACKET_LENGTH_SEND 3
+#define RX_ADDRESS 0x18. //Receipt address This isnt right but is working because im not receiving anything
+#define TX_ADDRESS 0x18 //Send address
+#define PACKET_LENGTH_SEND 11
 #define CHANNEL 2
 #define PACKET_LENGTH_READ 10
 
+// STATES: Currently operating in only state 1 which has been repurposed to localisation and communication with the other M2. State 2 is motor driving depending on initial location and orientation. Change the right State=1 commands to State=2 commands to re-enable the qualifying code. Note: I have the states switch with receipt of a play command
+//LOCALISATION SENDING: I changed the send_data array to send the star positions for debugging, but change the packet lengths back and uncomment the send data stuff when we figure that out. Timer1 was not sending an interrupt so we commented it out, but ideally we will use it's 10hz overflow interrupt to find and send position.
+//MOTOR CONTROL: The motor commands are set by valuing a signed int "leftcommand" or "rightcommand" to duty cycle in percent with positive being forward and negative being backward. I havent been able to test with the h-bridge yet obviously, so we will have to make sure that we are setting and clearing the right pins for direction. Right and left motors could be switched too, depending on how we plug in the molex.
+
+
 char buffer[PACKET_LENGTH_READ] = {0,0,0,0,0,0,0,0,0,0}; //data to be received
-char send_data[PACKET_LENGTH_SEND] = {0,0,0}; // data to be sent to game controller
+char send_data[PACKET_LENGTH_SEND] = {0,0,0,0,0,0,0,0,0,0,0}; // data to be sent to game controller
 
 
 unsigned int star_data[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
@@ -56,7 +61,7 @@ int main(void)
         
         switch (State) { //** Necessary states for 11/24: 1 = Wait |  2 = drive to opposite side of rink
             case 1:
-                m_wii_read(star_data);
+                m_wii_read(star_data); //Grab star_data array
                 valid = find_position(star_data); // process data to find position
                 
                 if (valid) { //Toggle green light if getting 4 values from localise
@@ -64,11 +69,20 @@ int main(void)
                 }
                 
                 OCR4B = 0; //Dont move!
-                OCR4C = 0;
+                OCR4C = 0; //Hands up!
 //
                 send_data[0] = (char)robot_position[0];//RX_ADDRESS;
                 send_data[1] = (char)robot_position[1];
                 send_data[2] = (char)(robot_orientation*127/6.3);
+                send_data[3] = (char)(Ax/10);//Untested, but should work. /10 to scale from 1023 to 102.3 for send to matlab as char. Might need to do /20 and wrap -51 if star data is ever negative.
+                send_data[4] = (char)(Ay/10);
+                send_data[5] = (char)(Bx/10);
+                send_data[6] = (char)(By/10);
+                send_data[7] = (char)(Cx/10);
+                send_data[8] = (char)(Cy/10);
+                send_data[9] = (char)(Dx/10);
+                send_data[10] = (char)(Dy/10);
+                
                 m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND);
                 
 //                send_data[0] = 0;//RX_ADDRESS;
@@ -78,10 +92,9 @@ int main(void)
                 
                 m_red(TOGGLE);
                 
-                m_wait(300);
 
                 if(m_usb_isconnected()) {
-                    m_usb_tx_int((int)star_data[0]);
+                    m_usb_tx_int((int)star_data[0]);//Raw x and y values of the stars in order of receipt
                     m_usb_tx_string("\t");
                     m_usb_tx_int((int)star_data[1]);
                     m_usb_tx_string("\t");
@@ -97,17 +110,19 @@ int main(void)
                     m_usb_tx_string("\t");
                     m_usb_tx_int((int)star_data[10]);
                     m_usb_tx_string("\t");
-                    m_usb_tx_int((int)(robot_position[0]));
+                    m_usb_tx_int((int)(robot_position[0])); //X position, whatever that means
                     m_usb_tx_string("\t");
-                    m_usb_tx_int((int)(robot_position[1]));
+                    m_usb_tx_int((int)(robot_position[1])); //Y position
                     m_usb_tx_string("\t");
-                    m_usb_tx_int((int)(robot_orientation*127/6.3));
+                    m_usb_tx_int((int)(robot_orientation*127/6.3)); //Orientation converted from radians to a fraction of 127
                     m_usb_tx_string("\n");
                 }
                 
+                m_wait(300);
                 
             case 2:
                 State = 1;
+            {
 //                if (checkside=0) {
 //                    checkside = 1;
 //                    
@@ -149,7 +164,7 @@ int main(void)
 //                        right_motor(rightcommand);
 //                    }
                 
-                
+            }
             default:
                 State = 1;
                 
@@ -258,7 +273,7 @@ void init(void) {
 //        valid = 1;//find_position(star_data); // process data to find position
 //        // transmit data if valid (all stars were found)
 //        if (valid) {
-//            send_data[0] = (char)robot_position[0];//RX_ADDRESS;
+//            send_data[0] = (char)robot_position[0];//TX_ADDRESS;
 //            send_data[1] = (char)robot_position[1];
 //            send_data[2] = (char)(robot_orientation*127/6.3);
 //            m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND);
@@ -347,10 +362,11 @@ bool find_position(unsigned int star_data[]) {
     float Ay = star_data[(3*A)+1];
     float Cx = star_data[3*C];
     float Cy = star_data[(3*C)+1];
-    float Bx = star_data[3*B];
+    float Bx = star_data[3*B]; //Non axial star data for plotting raw star data
     float By = star_data[(3*B)+1];
     float Dx = star_data[3*D];
     float Dy = star_data[(3*D)+1];
+    
     
     // calculate origin
     float ox = (Ax + Cx)/2;
