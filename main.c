@@ -10,9 +10,9 @@
 #include "m_rf.h"
 #include "m_usb.h"
 
-#define RX_ADDRESS 0x18. //Receipt address This isnt right but is working because im not receiving anything
+#define RX_ADDRESS 0x18 //Receipt address This isnt right but is working because im not receiving anything
 #define TX_ADDRESS 0x18 //Send address
-#define PACKET_LENGTH_SEND 11
+#define PACKET_LENGTH_SEND 3
 #define CHANNEL 2
 #define PACKET_LENGTH_READ 10
 
@@ -22,14 +22,14 @@
 
 
 char buffer[PACKET_LENGTH_READ] = {0,0,0,0,0,0,0,0,0,0}; //data to be received
-char send_data[PACKET_LENGTH_SEND] = {0,0,0,0,0,0,0,0,0,0,0}; // data to be sent to game controller
+char send_data[PACKET_LENGTH_SEND] = {0,0,0};//,0,0,0,0,0,0,0,0}; // data to be sent to game controller
 
 
 unsigned int star_data[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
 float robot_position[2] = {0,0}; // vector for robot position (x and y)
 float robot_orientation= 0; // vector for robot orientation (direction fo y-axis)
 volatile bool timer1_flag = 0; // set high when timer1 overflows
-float pixel_cm_conversion = .3; // conversion from pixels to cm, TBD
+float pixel_cm_conversion = 40/125; // conversion from pixels to cm, TBD
 bool valid = 0; // true when position m_wii data is valid
 //int dutyBLeft = 0; //Percentage of duty cycle left motor
 //int dutyARight = 0; //Percentage of duty cycle right motor
@@ -42,6 +42,7 @@ int postarget = 0;
 int sign = 0;
 int checkside = 0;
 int testvar = 0;
+
 
 void init(void);
 bool find_position(unsigned int star_data[]);
@@ -74,14 +75,6 @@ int main(void)
                 send_data[0] = (char)robot_position[0];//RX_ADDRESS;
                 send_data[1] = (char)robot_position[1];
                 send_data[2] = (char)(robot_orientation*127/6.3);
-                send_data[3] = (char)(Ax/10);//Untested, but should work. /10 to scale from 1023 to 102.3 for send to matlab as char. Might need to do /20 and wrap -51 if star data is ever negative.
-                send_data[4] = (char)(Ay/10);
-                send_data[5] = (char)(Bx/10);
-                send_data[6] = (char)(By/10);
-                send_data[7] = (char)(Cx/10);
-                send_data[8] = (char)(Cy/10);
-                send_data[9] = (char)(Dx/10);
-                send_data[10] = (char)(Dy/10);
                 
                 m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND);
                 
@@ -116,6 +109,9 @@ int main(void)
                     m_usb_tx_string("\t");
                     m_usb_tx_int((int)(robot_orientation*127/6.3)); //Orientation converted from radians to a fraction of 127
                     m_usb_tx_string("\n");
+                    
+                    
+                    
                 }
                 
                 m_wait(300);
@@ -317,21 +313,25 @@ bool find_position(unsigned int star_data[]) {
     float max = 0;
     for (i = 0; i < 4; i++) {
         for (j = 0; j < 4; j++) {
-            dist[i][j] = sqrt(powf((star_data[3*i] - star_data[3*j]),2) + powf((star_data[(3*i)+1] - star_data[(3*j)+1]),2));
+            dist[i][j] = sqrtf(powf(((float)star_data[3*i] - (float)star_data[3*j]),2) + powf(((float)star_data[(3*i)+1] - (float)star_data[(3*j)+1]),2));
             if (dist[i][j] > max) {
                 max = dist[i][j];
                 a_guess = i;
                 c_guess = j;
+                
             }
+            
         }
+        
     }
+    
     
     // Identify A and C (using fact the B and D are both father from C than A)
     int k = 0;
     for (k = 0; k < 4; k++) {
         // only examine distances not between A and C
         if ((k != a_guess) && (k != c_guess)) {
-            if (dist[A][k] < dist[C][k]) {
+            if (dist[a_guess][k] < dist[c_guess][k]) {
                 A = a_guess;
                 C = c_guess;
             } else {
@@ -346,7 +346,7 @@ bool find_position(unsigned int star_data[]) {
     for (k = 0; k < 4; k++) {
         if ((k != A) && (k != C)) {
             float r = (dist[C][k])/(dist[A][k]);
-            if ((r > (B_ratio-tol)) && \\\\(r < (B_ratio+tol))) {
+            if ((r > (B_ratio-tol)) && (r < (B_ratio+tol))) {
                 B = k;
                 D = 10 - (A + B + C);
             } else {
@@ -368,6 +368,7 @@ bool find_position(unsigned int star_data[]) {
     float Dy = star_data[(3*D)+1];
     
     
+    
     // calculate origin
     float ox = (Ax + Cx)/2;
     float oy = (Ay + Cy)/2;
@@ -375,12 +376,13 @@ bool find_position(unsigned int star_data[]) {
     // calculate rotation from robot frame to star frame
     float theta = (-1)*atan2((Ax-Cx),(Ay-Cy));		// these arguments should be doubles, check here if there is a problem
     
+    
     // calculate robot position using output from homogeneous transform matric
-    float x = (-1)*cos(theta)*(ox-512)-sin(theta)*(oy-384);
+    float x = -1*((-1)*cos(theta)*(ox-512)-sin(theta)*(oy-384)); // added an extra inversion
     float y = sin(theta)*(ox-512)-cos(theta)*(oy-384);
     
     // orientation measured relative to rink coordinate frame in radians, counter-clockwise
-    float orientation = (-1)*theta;
+    float orientation = theta; // no longer inverting
     
     // store values to arrays (defined above so the can be accessed by main, C functions can't return an array)
     robot_position[0] = pixel_cm_conversion*x; // convert from pixels to cm
