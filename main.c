@@ -34,10 +34,10 @@ bool valid = 0; // true when position m_wii data is valid
 //int dutyBLeft = 0; //Percentage of duty cycle left motor
 //int dutyARight = 0; //Percentage of duty cycle right motor
 int target = 0;  //Target angle for driving across rink
-int timer0count = 25; //0xff/100
+int timer0count = 2; //0xff/100
 int leftcommand = 0; //Duty cycle and direction of left motor
 int rightcommand = 0; //Duty cycle and direction of right motor
-int State = 1;
+int State = 2;
 int postarget = 0;
 int sign = 0;
 int checkside = 0;
@@ -116,9 +116,17 @@ int main(void)
                 
                 m_wait(300);
                 
+                break;
+                
             case 2:
-                State = 1;
-            {
+                
+                rightcommand = 100;
+                leftcommand = 35;
+                right_motor(rightcommand);
+                left_motor(leftcommand);
+                
+                //State = 1;
+            
 //                if (checkside=0) {
 //                    checkside = 1;
 //                    
@@ -159,10 +167,11 @@ int main(void)
 //                        left_motor(leftcommand);
 //                        right_motor(rightcommand);
 //                    }
+                break;
                 
-            }
+            
             default:
-                State = 1;
+                State = 2;
                 
                 
                 break;
@@ -185,11 +194,11 @@ void left_motor(int leftcommand){
 
 void right_motor(int rightcommand){
     if(rightcommand>0){
-        OCR4C = rightcommand*timer0count;
+        OCR4A = rightcommand*timer0count;
         set(PORTB,PIN2); //Set B2 to go forward
         clear(PORTB,PIN3);}
     else{
-        OCR4C = -1*rightcommand*timer0count;
+        OCR4A = -1*rightcommand*timer0count;
         clear(PORTB,PIN2); //Set B2 to go forward
         set(PORTB,PIN3);}
 }
@@ -234,16 +243,16 @@ void init(void) {
     
     OCR4A = 0; // initialize duty cycle to zero
     OCR4B = 0;
-    OCR4C = 250;
+    OCR4C = 200;
     
     set(DDRC,PIN7); //Compare A pin
     set(DDRB,PIN6); //Compare B pin
     
     
-    set(TCCR4B, CS43); //  set prescaler to /64
+    set(TCCR4B, CS43); //  set prescaler to /128
     clear(TCCR4B, CS42); // ^
-    clear(TCCR4B, CS41); // ^
-    set(TCCR4B, CS40); // ^
+    set(TCCR4B, CS41); // ^
+    clear(TCCR4B, CS40); // ^
     
     clear(TCCR4D, WGM41); // Up to OCR4C, PWM mode
     clear(TCCR4D, WGM40); // ^
