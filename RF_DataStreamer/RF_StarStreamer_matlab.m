@@ -11,11 +11,9 @@ while 1
     read = m2.BytesAvailable;
     if read > 0
         data = fscanf(m2);
-        fields = strsplit(data,'\t'); % fields(1) = x_pos, fields(2) = y_pos, fields(3) = orientation
-        values(1) = str2num(fields{1});
-        values(2) = str2num(fields{2});
-        values(3) = str2num(fields{3});
+        fields = strsplit(data,'\t');
         for i = 1:3
+            values(i) = str2num(fields{i});
             if values(i)>127
                 values(i) = values(i) - 256;
             end

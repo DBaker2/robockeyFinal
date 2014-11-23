@@ -22,7 +22,7 @@ int main(void)
 	m_clockdivide(0);
 	m_usb_init();
 	m_bus_init();
-	m_rf_open(1,0x18,3);
+	m_rf_open(2,0x18,3);
 	sei();
 
 	while(1)

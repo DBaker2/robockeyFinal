@@ -21,11 +21,11 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING
   8 .debug_frame  000004d8  00000000  00000000  000031e8  2**2
                   CONTENTS, READONLY, DEBUGGING
-  9 .debug_str    0000065b  00000000  00000000  000036c0  2**0
+  9 .debug_str    000006aa  00000000  00000000  000036c0  2**0
                   CONTENTS, READONLY, DEBUGGING
- 10 .debug_loc    00001f1b  00000000  00000000  00003d1b  2**0
+ 10 .debug_loc    00001f1b  00000000  00000000  00003d6a  2**0
                   CONTENTS, READONLY, DEBUGGING
- 11 .debug_ranges 00000188  00000000  00000000  00005c36  2**0
+ 11 .debug_ranges 00000188  00000000  00000000  00005c85  2**0
                   CONTENTS, READONLY, DEBUGGING
 
 Disassembly of section .text:
@@ -172,10 +172,10 @@ int main(void)
  1ae:	0e 94 05 02 	call	0x40a	; 0x40a <m_usb_init>
 	m_bus_init();
  1b2:	0e 94 36 01 	call	0x26c	; 0x26c <m_bus_init>
-	m_rf_open(1,0x18,3);
+	m_rf_open(2,0x18,3);
  1b6:	43 e0       	ldi	r20, 0x03	; 3
  1b8:	68 e1       	ldi	r22, 0x18	; 24
- 1ba:	81 e0       	ldi	r24, 0x01	; 1
+ 1ba:	82 e0       	ldi	r24, 0x02	; 2
  1bc:	0e 94 47 01 	call	0x28e	; 0x28e <m_rf_open>
 	sei();
  1c0:	78 94       	sei

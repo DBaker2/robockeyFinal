@@ -635,15 +635,15 @@ END GROUP
  .debug_frame   0x00000134       0x70 m_rf.o
  .debug_frame   0x000001a4      0x334 m_usb.o
 
-.debug_str      0x00000000      0x65b
+.debug_str      0x00000000      0x6aa
  *(.debug_str)
- .debug_str     0x00000000      0x1ba main.o
-                                0x1f3 (size before relaxing)
- .debug_str     0x000001ba       0x85 m_bus.o
+ .debug_str     0x00000000      0x1a3 main.o
+                                0x1dc (size before relaxing)
+ .debug_str     0x000001a3       0xeb m_bus.o
                                 0x211 (size before relaxing)
- .debug_str     0x0000023f       0x4d m_rf.o
+ .debug_str     0x0000028e       0x4d m_rf.o
                                 0x1db (size before relaxing)
- .debug_str     0x0000028c      0x3cf m_usb.o
+ .debug_str     0x000002db      0x3cf m_usb.o
                                 0x5b1 (size before relaxing)
 
 .debug_loc      0x00000000     0x1f1b
