@@ -34,12 +34,12 @@ float pixel_cm_conversion = 40.0/125.0; // conversion from pixels to cm, TBD
 bool valid = 0; // true when position m_wii data is valid
 //int dutyBLeft = 0; //Percentage of duty cycle left motor
 //int dutyARight = 0; //Percentage of duty cycle right motor
-int target = 0;  //Target angle for driving across rink
+float target = 0;  //Target angle for driving across rink
 int timer0count = 2; //0xff/100
 int leftcommand = 0; //Duty cycle and direction of left motor
 int rightcommand = 0; //Duty cycle and direction of right motor
 int State = 2;
-int postarget = 0;
+float postarget = 0;
 int sign = 0;
 int checkside = 0;
 int testvar = 0;
@@ -76,119 +76,77 @@ int main(void)
     while(TRUE) {
         
         switch (State) { //** Necessary states for 11/24: 1 = Wait |  2 = drive to opposite side of rink
-            case 1:
-//                m_wii_read(star_data); //Grab star_data array
-//                valid = find_position(star_data); // process data to find position
-//                
-//
-//
-//                send_data[0] = (char)(star_data[0]/10);//RX_ADDRESS;
-//                send_data[1] = (char)(star_data[1]/10);//RX_ADDRESS;;
-//                send_data[2] = (char)(star_data[3]/10);//RX_ADDRESS;
-//                send_data[3] = (char)(star_data[4]/10);//RX_ADDRESS;
-//                send_data[4] = (char)(star_data[6]/10);//RX_ADDRESS;
-//                send_data[5] = (char)(star_data[7]/10);//RX_ADDRESS;
-//                send_data[6] = (char)(star_data[9]/10);//RX_ADDRESS;
-//                send_data[7] = (char)(star_data[10]/10);//RX_ADDRESS;
-//                
-//                m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND);
+            case 1: //Wait for PLAY command
                 
-//                send_data[0] = 0;//RX_ADDRESS;
-//                send_data[1] = 1;//(char)robot_position[0];
-//                send_data[2] = 2;//(char)robot_position[1];
-//                m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH);
-
-                if(m_usb_isconnected()) {
-                    m_usb_tx_int((int)star_data[0]);//Raw x and y values of the stars in order of receipt
-                    m_usb_tx_string("\t");
-                    m_usb_tx_int((int)star_data[1]);
-                    m_usb_tx_string("\t");
-                    m_usb_tx_int((int)star_data[3]);
-                    m_usb_tx_string("\t");
-                    m_usb_tx_int((int)star_data[4]);
-                    m_usb_tx_string("\t");
-                    m_usb_tx_int((int)star_data[6]);
-                    m_usb_tx_string("\t");
-                    m_usb_tx_int((int)star_data[7]);
-                    m_usb_tx_string("\t");
-                    m_usb_tx_int((int)star_data[9]);
-                    m_usb_tx_string("\t");
-                    m_usb_tx_int((int)star_data[10]);
-                    m_usb_tx_string("\t");
-                    m_usb_tx_int((int)(robot_position[0])); //X position, whatever that means
-                    m_usb_tx_string("\t");
-                    m_usb_tx_int((int)(robot_position[1])); //Y position
-                    m_usb_tx_string("\t");
-                    m_usb_tx_int((int)(robot_orientation*127/6.3)); //Orientation converted from radians to a fraction of 127
-                    m_usb_tx_string("\n");
-                    
-                }
-                
-//                m_wait(300);
-                
+                m_wait(300);
+                State = 2;
                 break;
                 
             case 2:
                 
+//                rightcommand = -50;
+//                leftcommand = -50;
+//                right_motor(rightcommand);
+//                left_motor(leftcommand);
                 
-                rightcommand = -50;
-                leftcommand = -50;
-                right_motor(rightcommand);
-                left_motor(leftcommand);
+                m_wait(150);
                 
-//            
-//                if (checkside=0) {
-//                    checkside = 1;
-//                    
-//                    if (robot_position[0]<0){
-//                        target = 0;
-//                        postarget = 100;
-//                        sign = 1;
-//                    }
-//                    
-//                    else {target = 180;
-//                        postarget = -100;
-//                        sign = -1;
-//                    }
-//                }
-//                m_wait(100);
-//                while (robot_position[0]<(postarget)) {
-//                    
-//                    if (robot_orientation>(4+target)) { //right spin
-//                        leftcommand = 50;
-//                        rightcommand = -50;
-//                        left_motor(leftcommand);
-//                        right_motor(rightcommand);
-//                        m_green(ON);
-//                        
-//                    }
-//                    m_wait(50);
-//                    
-//                    
-//                    if (robot_orientation<(-4+target)) { //left spin
-//                        leftcommand = -50;
-//                        rightcommand = 50;
-//                        left_motor(leftcommand);
-//                        right_motor(rightcommand);
-//                        m_green(OFF);
-//                    }
-//                    m_wait(50);
-//                    
-//                    if ((-4+target)<robot_orientation & robot_orientation<(4+target)) { //warning: comparisons like 'X<=Y<=Z' do not have their mathematical meaning [-Wparentheses]??
-//                        //forward
-//                        leftcommand = 50;
-//                        rightcommand = 50;
-//                        left_motor(leftcommand);
-//                        right_motor(rightcommand);
-//                    }
-//                    m_wait(50);
-//                }
+                if (checkside<10) {
+                    checkside++;
+                
+                    if (robot_position[0]<0){
+                        target = 0;
+                        postarget = 100;
+                    }
+                    
+                    else {target = 3.14;
+                        postarget = -100;
+                    }
+                }
+                
+                m_wait(100);
+                
+                if (robot_position[0]<(postarget)) {
+                    
+                    if (robot_orientation>(4+target)) { //right spin
+                        leftcommand = 50;
+                        rightcommand = -50;
+                        left_motor(leftcommand);
+                        right_motor(rightcommand);
+                        m_green(ON);
+                        
+                    }
+                    m_wait(50);
+                    
+                    
+                    if (robot_orientation<(-4+target)) { //left spin
+                        leftcommand = -50;
+                        rightcommand = 50;
+                        left_motor(leftcommand);
+                        right_motor(rightcommand);
+                        m_green(OFF);
+                    }
+                    m_wait(50);
+                    
+                    if ((-4+target)<robot_orientation & robot_orientation<(4+target)) {
+                        //forward
+                        leftcommand = 50;
+                        rightcommand = 50;
+                        left_motor(leftcommand);
+                        right_motor(rightcommand);
+                    }
+                    m_wait(50);
+
+                } else {
+                    State=1;
+                }
                 break;
                 
         
         
     default:
-    State = 2;
+        State = 1;
+        
         break;
         
         }
@@ -339,14 +297,17 @@ bool find_position(unsigned int star_data[]) {
     int i = 0;
     for (i = 0; i < 11; i++) {
         if (star_data[i] == 1023) {
-            LocIndex = LocIndex+2;
+            LocIndex = LocIndex+1;
         }
     }
     
     if (LocIndex<2) {
         LocState = 1;}
-    else {LocState=2;}
-//    
+    if (LocIndex=2) {
+        LocState =2;}
+   if (LocIndex>2) {
+       LocState = 3;}
+    
 //    if (LocIndex=2) {
 //        LocState = 2;}
 //    
@@ -356,7 +317,7 @@ bool find_position(unsigned int star_data[]) {
     
     
     switch (LocState) {
-        case 1:
+        case 1: //ALL STARS FOUND
             m_red(OFF);
             m_green(ON);
             // calculate all distances and store them in array, find maximum of these distances
@@ -440,7 +401,7 @@ bool find_position(unsigned int star_data[]) {
             
             break;
             
-        case 2: //3-star case. If star_data[i] = 1023, throw out data point, save index of data point, perform ratio calculations on the other three to determine axial stars, rotate that axis.
+        case 2: //3-star case. If star_data[i] = 1023, throw out data point, make new array, assume axial stars. Will later perform ratio calculations on the other three to determine axial stars, rotate that axis.
             
             m_red(ON);
             m_green(ON);
@@ -573,4 +534,48 @@ float dot(float v1[2], float v2[2]) {
     
     return result;
 }
-////
+//// Useful Blocks of code
+//
+//                send_data[0] = (char)(star_data[0]/10);//RX_ADDRESS;
+//                send_data[1] = (char)(star_data[1]/10);//RX_ADDRESS;;
+//                send_data[2] = (char)(star_data[3]/10);//RX_ADDRESS;
+//                send_data[3] = (char)(star_data[4]/10);//RX_ADDRESS;
+//                send_data[4] = (char)(star_data[6]/10);//RX_ADDRESS;
+//                send_data[5] = (char)(star_data[7]/10);//RX_ADDRESS;
+//                send_data[6] = (char)(star_data[9]/10);//RX_ADDRESS;
+//                send_data[7] = (char)(star_data[10]/10);//RX_ADDRESS;
+//
+//                m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND);
+
+//                send_data[0] = 0;//RX_ADDRESS;
+//                send_data[1] = 1;//(char)robot_position[0];
+//                send_data[2] = 2;//(char)robot_position[1];
+//                m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH);
+
+//                if(m_usb_isconnected()) {
+//                    m_usb_tx_int((int)star_data[0]);//Raw x and y values of the stars in order of receipt
+//                    m_usb_tx_string("\t");
+//                    m_usb_tx_int((int)star_data[1]);
+//                    m_usb_tx_string("\t");
+//                    m_usb_tx_int((int)star_data[3]);
+//                    m_usb_tx_string("\t");
+//                    m_usb_tx_int((int)star_data[4]);
+//                    m_usb_tx_string("\t");
+//                    m_usb_tx_int((int)star_data[6]);
+//                    m_usb_tx_string("\t");
+//                    m_usb_tx_int((int)star_data[7]);
+//                    m_usb_tx_string("\t");
+//                    m_usb_tx_int((int)star_data[9]);
+//                    m_usb_tx_string("\t");
+//                    m_usb_tx_int((int)star_data[10]);
+//                    m_usb_tx_string("\t");
+//                    m_usb_tx_int((int)(robot_position[0])); //X position, whatever that means
+//                    m_usb_tx_string("\t");
+//                    m_usb_tx_int((int)(robot_position[1])); //Y position
+//                    m_usb_tx_string("\t");
+//                    m_usb_tx_int((int)(robot_orientation*127/6.3)); //Orientation converted from radians to a fraction of 127
+//                    m_usb_tx_string("\n");
+//
+//                }
+//
+

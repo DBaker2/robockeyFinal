@@ -1,6 +1,10 @@
 %% Initialize device
 
+<<<<<<< HEAD
 m2 = serial('/dev/tty.usbmodem411', 'BAUDRATE', 9600);  % Fill in correct COM Port # here
+=======
+m2 = serial('COM7', 'BAUDRATE', 9600);  % Fill in correct COM Port # here
+>>>>>>> c31a20d21b445a315a05c4e9818b0599284f234e
 fopen(m2)
 m2.ReadAsyncMode = 'continuous'; % Continuously poll M2 for available data
 n = 1
@@ -11,6 +15,7 @@ while 1
     read = m2.BytesAvailable;
     if read > 0
         data = fscanf(m2);
+<<<<<<< HEAD
         fields = strsplit(data,'\t'); % fields(1) = x_pos, fields(2) = y_pos, fields(3) = orientation
         values(1) = str2num(fields{1});
         values(2) = str2num(fields{2});
@@ -21,10 +26,16 @@ while 1
         values(7) = str2num(fields{7});
         values(8) = str2num(fields{8});
         for i = 1:8
+=======
+        fields = strsplit(data,'\t');
+        for i = 1:3
+            values(i) = str2num(fields{i});
+>>>>>>> c31a20d21b445a315a05c4e9818b0599284f234e
             if values(i)>127
                 values(i) = values(i) - 256;
             end
         end
+<<<<<<< HEAD
         position1 = [values(1) values(2)];
         position2 = [values(3) values(4)];
         position3 = [values(5) values(6)];
@@ -35,6 +46,15 @@ while 1
         plot(position1(1),position1(2),'*','b',position2(1),position2(2),'*','c',position3(1),position3(2),'*','k',position4(1),position4(2),'*','g');
         hold on
         %quiver(position(1),position(2),-25*sin(orientation),25*cos(orientation));
+=======
+        position = [values(1) values(2)];
+        orientation = values(3)*((2*pi)/127); % in radians
+        
+        % Plot position and orientation
+        plot(position(1),position(2),'*');
+        hold on
+        quiver(position(1),position(2),-25*sin(orientation),25*cos(orientation));
+>>>>>>> c31a20d21b445a315a05c4e9818b0599284f234e
         axis equal;
         axis([-150 150 -100 100]);
         
@@ -64,4 +84,8 @@ while 1
         n = n+1
     end
 end
+<<<<<<< HEAD
 fclose(m2)
+=======
+fclose(m2)
+>>>>>>> c31a20d21b445a315a05c4e9818b0599284f234e

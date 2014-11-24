@@ -19,6 +19,7 @@ volatile char orientation;
 
 int main(void)
 {
+<<<<<<< HEAD
     m_clockdivide(0);
     m_usb_init();
     m_bus_init();
@@ -28,6 +29,17 @@ int main(void)
     while(1)
     {
     }
+=======
+	m_clockdivide(0);
+	m_usb_init();
+	m_bus_init();
+	m_rf_open(2,0x18,3);
+	sei();
+
+	while(1)
+	{
+	}
+>>>>>>> c31a20d21b445a315a05c4e9818b0599284f234e
 }
 
 ISR(INT2_vect){
