@@ -26,10 +26,11 @@ char send_data[PACKET_LENGTH_SEND] = {0,0,0};//,0,0,0,0,0,0,0,0}; // data to be 
 
 
 unsigned int star_data[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
+unsigned int star_data2[12] = {0,0,0,0,0,0,0,0,0};
 float robot_position[2] = {0,0}; // vector for robot position (x and y)
 float robot_orientation= 0; // vector for robot orientation (direction fo y-axis)
 volatile bool timer1_flag = 0; // set high when timer1 overflows
-float pixel_cm_conversion = 40/125; // conversion from pixels to cm, TBD
+float pixel_cm_conversion = 40.0/125.0; // conversion from pixels to cm, TBD
 bool valid = 0; // true when position m_wii data is valid
 //int dutyBLeft = 0; //Percentage of duty cycle left motor
 //int dutyARight = 0; //Percentage of duty cycle right motor
@@ -42,6 +43,20 @@ int postarget = 0;
 int sign = 0;
 int checkside = 0;
 int testvar = 0;
+//float x = 0;
+//float y = 0;
+//float theta = 0;
+//int skip = 0;
+//int LocState =0;
+//float max = 0;
+//int k = 0;
+//float Ax = 0;
+//float Ay = 0;
+//float Cx = 0;
+//float Cy = 0;
+//float ox = 0;
+//float oy = 0;
+
 
 
 void init(void);
@@ -62,21 +77,21 @@ int main(void)
         
         switch (State) { //** Necessary states for 11/24: 1 = Wait |  2 = drive to opposite side of rink
             case 1:
-                m_wii_read(star_data); //Grab star_data array
-                valid = find_position(star_data); // process data to find position
-                
-                if (valid) { //Toggle green light if getting 4 values from localise
-                    m_green(TOGGLE);
-                }
-                
-                OCR4B = 0; //Dont move!
-                OCR4C = 0; //Hands up!
+//                m_wii_read(star_data); //Grab star_data array
+//                valid = find_position(star_data); // process data to find position
+//                
 //
-                send_data[0] = (char)robot_position[0];//RX_ADDRESS;
-                send_data[1] = (char)robot_position[1];
-                send_data[2] = (char)(robot_orientation*127/6.3);
-                
-                m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND);
+//
+//                send_data[0] = (char)(star_data[0]/10);//RX_ADDRESS;
+//                send_data[1] = (char)(star_data[1]/10);//RX_ADDRESS;;
+//                send_data[2] = (char)(star_data[3]/10);//RX_ADDRESS;
+//                send_data[3] = (char)(star_data[4]/10);//RX_ADDRESS;
+//                send_data[4] = (char)(star_data[6]/10);//RX_ADDRESS;
+//                send_data[5] = (char)(star_data[7]/10);//RX_ADDRESS;
+//                send_data[6] = (char)(star_data[9]/10);//RX_ADDRESS;
+//                send_data[7] = (char)(star_data[10]/10);//RX_ADDRESS;
+//                
+//                m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND);
                 
 //                send_data[0] = 0;//RX_ADDRESS;
 //                send_data[1] = 1;//(char)robot_position[0];
@@ -107,23 +122,21 @@ int main(void)
                     m_usb_tx_int((int)(robot_orientation*127/6.3)); //Orientation converted from radians to a fraction of 127
                     m_usb_tx_string("\n");
                     
-                    
-                    
                 }
                 
-                m_wait(300);
+//                m_wait(300);
                 
                 break;
                 
             case 2:
                 
-                rightcommand = 100;
-                leftcommand = 35;
+                
+                rightcommand = -50;
+                leftcommand = -50;
                 right_motor(rightcommand);
                 left_motor(leftcommand);
                 
-                //State = 1;
-            
+//            
 //                if (checkside=0) {
 //                    checkside = 1;
 //                    
@@ -138,6 +151,7 @@ int main(void)
 //                        sign = -1;
 //                    }
 //                }
+//                m_wait(100);
 //                while (robot_position[0]<(postarget)) {
 //                    
 //                    if (robot_orientation>(4+target)) { //right spin
@@ -148,6 +162,8 @@ int main(void)
 //                        m_green(ON);
 //                        
 //                    }
+//                    m_wait(50);
+//                    
 //                    
 //                    if (robot_orientation<(-4+target)) { //left spin
 //                        leftcommand = -50;
@@ -156,6 +172,7 @@ int main(void)
 //                        right_motor(rightcommand);
 //                        m_green(OFF);
 //                    }
+//                    m_wait(50);
 //                    
 //                    if ((-4+target)<robot_orientation & robot_orientation<(4+target)) { //warning: comparisons like 'X<=Y<=Z' do not have their mathematical meaning [-Wparentheses]??
 //                        //forward
@@ -164,17 +181,20 @@ int main(void)
 //                        left_motor(leftcommand);
 //                        right_motor(rightcommand);
 //                    }
+//                    m_wait(50);
+//                }
                 break;
                 
-            
-            default:
-                State = 2;
-                
-                
-                break;
+        
+        
+    default:
+    State = 2;
+        break;
+        
         }
-    }
+        }
 }
+    
 
 void left_motor(int leftcommand){
     
@@ -221,21 +241,21 @@ void init(void) {
     m_wii_open();
     
     // timer 1 set up (running at approx 10Hz)
-    //set(DDRB,PIN7);
-    //OCR1C = 0; //Interrupt when TCNT1 = OCR1C = 0
+//    set(DDRB,PIN7);
+//    OCR1C = 0; //Interrupt when TCNT1 = OCR1C = 0
     
     clear(TCCR1B, CS12); // prescaler to /64
     set(TCCR1B, CS11);   // ^
     set(TCCR1B, CS10);  // ^
     
-    clear(TCCR1B, WGM13); // (mode 4) UP to OCR1A
+    set(TCCR1B, WGM13); // (mode 4) UP to OCR1A
     set(TCCR1B, WGM12);   // ^
-    clear(TCCR1A, WGM11); // ^
-    clear(TCCR1A, WGM10); // ^
+    set(TCCR1A, WGM11); // ^
+    set(TCCR1A, WGM10); // ^
     
     set(TIMSK1, TOIE1); // interrupt every overflow
     
-    OCR1A = 25000; // timer up to this number
+    OCR1A = 2500; // timer up to this number
     
     sei();
     
@@ -271,14 +291,21 @@ void init(void) {
 
 ////
 ISR(TIMER1_OVF_vect) {
-    //m_green(TOGGLE);
-    set(TIFR1,TOV1); //reset timer flag
     m_wii_read(star_data);
     valid = find_position(star_data);
     if (valid) {
         send_data[0] = (char)robot_position[0];//TX_ADDRESS;
         send_data[1] = (char)robot_position[1];
         send_data[2] = (char)(robot_orientation*127/6.3);
+//        send_data[0] = (char)(star_data[0]/10);//RX_ADDRESS;
+//        send_data[1] = (char)(star_data[1]/10);//RX_ADDRESS;;
+//        send_data[2] = (char)(star_data[3]/10);//RX_ADDRESS;
+//        send_data[3] = (char)(star_data[4]/10);//RX_ADDRESS;
+//        send_data[4] = (char)(star_data[6]/10);//RX_ADDRESS;
+//        send_data[5] = (char)(star_data[7]/10);//RX_ADDRESS;
+//        send_data[6] = (char)(star_data[9]/10);//RX_ADDRESS;
+//        send_data[7] = (char)(star_data[10]/10);//RX_ADDRESS;
+        
         m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND);
     }
     // when timer oveflows (set for 10Hz), process and transmit data
@@ -290,9 +317,8 @@ ISR(TIMER1_OVF_vect) {
 
 bool find_position(unsigned int star_data[]) {
    
-    
-    
     float dist[4][4] = {{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0}}; // array for dsitances between stars
+    float dist2[3][3] ={{0,0,0},{0,0,0},{0,0,0}};
     float robot_y_axis[2]= {1,0}; // robot reference frame y-axis
     float B_ratio = 2; // ratio of AB to CB
     float D_ratio = 1.25; // ratio of AD to CD
@@ -303,26 +329,37 @@ bool find_position(unsigned int star_data[]) {
     int B = 0; // index for B ^
     int C = 0; // index for C ^
     int D = 0; // index for D ^
+    int j=0;
+    int max = 0;
+    int k = 0;
+    int LocIndex = 0;
+    int LocState = 1;
     
     // check if all stars are found, if so State = 1, if not State = 2
     int i = 0;
     for (i = 0; i < 11; i++) {
         if (star_data[i] == 1023) {
-            LocIndex++;
+            LocIndex = LocIndex+2;
         }
     }
     
-    if (LocIndex>=2) {
-        LocState = 2;}
-    else { LocState = 1;}
+    if (LocIndex<2) {
+        LocState = 1;}
+    else {LocState=2;}
+//    
+//    if (LocIndex=2) {
+//        LocState = 2;}
+//    
+//    if (LocIndex>=4) {
+//        LocState = 3;}
+
     
     
     switch (LocState) {
-        
         case 1:
+            m_red(OFF);
+            m_green(ON);
             // calculate all distances and store them in array, find maximum of these distances
-            int j = 0;
-            float max = 0;
             for (i = 0; i < 4; i++) {
                 for (j = 0; j < 4; j++) {
                     dist[i][j] = sqrtf(powf(((float)star_data[3*i] - (float)star_data[3*j]),2) + powf(((float)star_data[(3*i)+1] - (float)star_data[(3*j)+1]),2));
@@ -339,7 +376,7 @@ bool find_position(unsigned int star_data[]) {
             
             
             // Identify A and C (using fact the B and D are both father from C than A)
-            int k = 0;
+
             for (k = 0; k < 4; k++) {
                 // only examine distances not between A and C
                 if ((k != a_guess) && (k != c_guess)) {
@@ -393,12 +430,24 @@ bool find_position(unsigned int star_data[]) {
             float x = -1*((-1)*cos(theta)*(ox-512)-sin(theta)*(oy-384)); // added an extra inversion
             float y = sin(theta)*(ox-512)-cos(theta)*(oy-384);
 
+            // orientation measured relative to rink coordinate frame in radians, counter-clockwise
+            float orientation = theta; // no longer inverting
+            
+            // store values to arrays (defined above so the can be accessed by main, C functions can't return an array)
+            robot_position[0] = pixel_cm_conversion*x; // convert from pixels to cm
+            robot_position[1] = pixel_cm_conversion*y; // convert from pixels to cm
+            robot_orientation = orientation;
             
             break;
             
         case 2: //3-star case. If star_data[i] = 1023, throw out data point, save index of data point, perform ratio calculations on the other three to determine axial stars, rotate that axis.
-            i = 0;
-            skip = 0
+            
+            m_red(ON);
+            m_green(ON);
+            
+            int skip = 0;
+            int i =0;
+            
             for (i=0; i<4; i++) {
                 if (star_data[3*i] != 1023) {
                     star_data2[2*i-2*skip] = star_data[3*i];
@@ -407,14 +456,11 @@ bool find_position(unsigned int star_data[]) {
                 else {skip++;}
             }
             
-            
-            int j = 0;
-            float max = 0;
             for (i = 0; i < 3; i++) {
                 for (j = 0; j < 3; j++) {
-                    dist[i][j] = sqrtf(powf(((float)star_data[2*i] - (float)star_data[2*j]),2) + powf(((float)star_data[(2*i)+1] - (float)star_data[(2*j)+1]),2));
-                    if (dist[i][j] > max) {
-                        max = dist[i][j];
+                    dist2[i][j] = sqrtf(powf(((float)star_data2[2*i] - (float)star_data2[2*j]),2) + powf(((float)star_data2[(2*i)+1] - (float)star_data2[(2*j)+1]),2));
+                    if (dist2[i][j] > max) {
+                        max = dist2[i][j];
                         a_guess = i;
                         c_guess = j;
                         
@@ -424,21 +470,84 @@ bool find_position(unsigned int star_data[]) {
                 
             }
             
+
+            // Identify A and C (using fact the B and D are both father from C than A)
+            for (k = 0; k < 3; k++) {
+                // only examine distances not between A and C
+                if ((k != a_guess) && (k != c_guess)) {
+                    if (dist2[a_guess][k] < dist2[c_guess][k]) {
+                        A = a_guess;
+                        C = c_guess;
+                    } else {
+                        A = c_guess;
+                        C = a_guess;;
+                    }
+                    break;
+                }
+            }
+
+
             
+//            // Identify B and D (using ratio, now that A and C are known)
+//            for (k = 0; k < 4; k++) {
+//                if ((k != A) && (k != C)) {
+//                    float r = (dist[C][k])/(dist[A][k]);
+//                    if ((r > (B_ratio-tol)) && (r < (B_ratio+tol))) {
+//                        B = k;
+//                        D = 10 - (A + B + C);
+//                    } else {
+//                        D = k;
+//                        B = 10 - (A + C + D);
+//                    }
+//                    break;
+//                }
+//            }
             
+            // extract A and C positions from data
+            float Ax1 = star_data2[3*A];
+            float Ay1 = star_data2[(3*A)+1];
+            float Cx1 = star_data2[3*C];
+            float Cy1 = star_data2[(3*C)+1];
+//            float Bx = star_data[3*B]; //Non axial star data for plotting raw star data
+//            float By = star_data[(3*B)+1];
+//            float Dx = star_data[3*D];
+//            float Dy = star_data[(3*D)+1];
+//
+//            
+//            
+            // calculate origin
+            float ox1 = (Ax1 + Cx1)/2;
+            float oy1 = (Ay1 + Cy1)/2;
             
-            break
-        default: 1
+            // calculate rotation from robot frame to star frame
+            float theta1 = (-1)*atan2((Ax1-Cx1),(Ay1-Cy1));		// these arguments should be doubles, check here if there is a problem
+            
+            // calculate robot position using output from homogeneous transform matric
+            float x1 = -1*((-1)*cos(theta1)*(ox1-512)-sin(theta1)*(oy1-384)); // added an extra inversion
+            float y1 = sin(theta1)*(ox1-512)-cos(theta1)*(oy1-384);
+
+            // orientation measured relative to rink coordinate frame in radians, counter-clockwise
+            float orientation1 = theta1; // no longer inverting
+
+            // store values to arrays (defined above so the can be accessed by main, C functions can't return an array)
+            robot_position[0] = pixel_cm_conversion*x1; // convert from pixels to cm
+            robot_position[1] = pixel_cm_conversion*y1; // convert from pixels to cm
+            robot_orientation = orientation1;
+            
+            break;
+            
+        case 3:
+            m_red(ON);
+            m_green(OFF);
+            return false;
+        
+        default:
+            LocState = 3;
+            
             break;
     }
     
-    // orientation measured relative to rink coordinate frame in radians, counter-clockwise
-    float orientation = theta; // no longer inverting
-    
-    // store values to arrays (defined above so the can be accessed by main, C functions can't return an array)
-    robot_position[0] = pixel_cm_conversion*x; // convert from pixels to cm
-    robot_position[1] = pixel_cm_conversion*y; // convert from pixels to cm
-    robot_orientation = orientation;
+
     
     // data is valid, return true
     return TRUE;
