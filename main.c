@@ -9,6 +9,7 @@
 #include "m_wii.h"
 #include "m_rf.h"
 #include "m_usb.h"
+#include "m_port.h"
 
 #define RX_ADDRESS 0x19 //Receipt address
 #define TX_ADDRESS 0x18 //Send address
@@ -54,7 +55,7 @@ float target = 0;  //Target angle for driving across rink
 int timer0count = 2; //0xff/100
 int leftcommand = 0; //Duty cycle and direction of left motor
 int rightcommand = 0; //Duty cycle and direction of right motor
-volatile int State = 1;
+volatile int State = PuckFind;
 float postarget = 0;
 int sign = 0;
 int checkside = 0;
@@ -64,7 +65,13 @@ float opptarget = 0; //angle of opponents goal
 volatile int lastPin = 0;
 volatile int oppgoal = -130; //x position of opponents goal - will  be determined by comm or switch
 //ADC variables
+float adcoffset[8] = {0,0,0,0,0,0,0,0};
+float adcmultiplier[8] = {1,1,1,1,1,1,1,1};
 volatile int adcChannel = 0;
+volatile float ADCdata[8] = {0,0,0,0,0,0,0,0};
+int maxADC;
+int puckdirr = 0;
+int puckdirl = 0;
 int L1;
 int L2;
 int L3;
@@ -84,10 +91,9 @@ float dot(float v1[], float v2[]);
 //void left_spin(dutyARight);
 void left_motor(int leftcommand);
 void right_motor(int rightcommand);
-int findpuck(void);
+void findPuck(void);
 
-int main(void)
-{
+int main(void){
     init();
     while(TRUE) {
         
@@ -102,23 +108,18 @@ int main(void)
             case Qualify:
                 
                 m_wait(150);
-                
                 if (checkside == 0) {
                     checkside = 1;
-                    
                     if (robot_position[0] < 0){
                         target = (3*PI)/2;
                         postarget = 100;
                     }
-                    
                     else {
                         target = PI/2;
                         postarget = -100;
                     }
-                    
                     m_wait(100);
                 }
-                
                 
                 
                 if (abs(robot_position[0])<(abs(postarget))) {
@@ -128,9 +129,7 @@ int main(void)
                         rightcommand = -20;
                         left_motor(leftcommand);
                         right_motor(rightcommand);
-
                     }
-                    
                     
                     
                     if (robot_orientation<(-0.17+target)) { //left spin
@@ -138,7 +137,6 @@ int main(void)
                         rightcommand = 20;
                         left_motor(leftcommand);
                         right_motor(rightcommand);
-
                     }
                     
                     
@@ -161,9 +159,9 @@ int main(void)
                 //Transition to: Play Command, Puck Lost, Team Lost Puck, Puck Shot
                 //Transition from: Got the Puck, Team has Puck
                 
-                direction = abs((lastPin-4)*25); // puck direction = 1-8 for each ptr array
-                rightcommand = (direction);
-                leftcommand = (100-direction);
+                findPuck();
+                rightcommand = (puckdirr);
+                leftcommand = (puckdirl);
                 left_motor(leftcommand);
                 right_motor(rightcommand);
                 
@@ -227,33 +225,7 @@ int main(void)
 
 // Background interrupts: Timer 0: 10hz interrupt finds location and puck direction | RF interrupt for Play/Pause/Listen, Enemy Position, and Teammate Commands
 
-
-void left_motor(int leftcommand){
-    
-    if(leftcommand>0){
-        set(PORTB,PIN0); //Set B0 to go forward
-        clear(PORTB,PIN1);
-        OCR4B = leftcommand*timer0count;
-    }
-    
-    else{clear(PORTB,PIN0); //Set B0 to go forward
-        set(PORTB,PIN1);
-        OCR4B = -1*leftcommand*timer0count;}
-}
-
-
-void right_motor(int rightcommand){
-    if(rightcommand>0){
-        OCR4A = rightcommand*timer0count;
-        set(PORTB,PIN2); //Set B2 to go forward
-        clear(PORTB,PIN3);}
-    else{
-        OCR4A = -1*rightcommand*timer0count;
-        clear(PORTB,PIN2); //Set B2 to go forward
-        set(PORTB,PIN3);}
-}
-
-
+//Initialize
 void init(void) {
     m_clockdivide(0); // 16 MHz clock
     m_disableJTAG();
@@ -347,6 +319,12 @@ void init(void) {
     clear(ADMUX,MUX0);
     set(ADCSRA,ADIE);
     
+    //Start by reading from F0
+    clear(ADCSRB,MUX5);
+    clear(ADMUX,MUX2);
+    clear(ADMUX,MUX1);
+    clear(ADMUX,MUX0);
+    
     // start conversion process
     set(ADCSRA,ADEN); //enable
     set(ADCSRA,ADSC); //start conversion
@@ -361,60 +339,16 @@ void init(void) {
     m_port_set(m_port_ADDRESS,DDRG,5);
     m_port_set(m_port_ADDRESS,DDRG,6);
     m_port_set(m_port_ADDRESS,DDRG,7);
+    m_port_set(m_port_ADDRESS,DDRH,0);
+    
+    
 
     
 }
-
-
-////
-ISR(TIMER1_OVF_vect) {
-    m_wii_read(star_data);
-    valid = find_position(star_data);
-    if (valid) {
-        send_data[0] = (char)robot_position[0];//TX_ADDRESS;
-        send_data[1] = (char)robot_position[1];
-        send_data[2] = (char)(robot_orientation*127/6.3);
-        //        send_data[0] = (char)(star_data[0]/10);//RX_ADDRESS;
-        //        send_data[1] = (char)(star_data[1]/10);//RX_ADDRESS;;
-        //        send_data[2] = (char)(star_data[3]/10);//RX_ADDRESS;
-        //        send_data[3] = (char)(star_data[4]/10);//RX_ADDRESS;
-        //        send_data[4] = (char)(star_data[6]/10);//RX_ADDRESS;
-        //        send_data[5] = (char)(star_data[7]/10);//RX_ADDRESS;
-        //        send_data[6] = (char)(star_data[9]/10);//RX_ADDRESS;
-        //        send_data[7] = (char)(star_data[10]/10);//RX_ADDRESS;
-        
-        m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND);
-    }
-    // when timer oveflows (set for 10Hz), process and transmit data
-}
-
-
-// interupt when comm is recieved
-ISR(INT2_vect){
-    m_rf_read(buffer,PACKET_LENGTH_READ);
-    
-    char CommState = buffer[0];
-    switch (CommState) {
-        case PLAY:
-            State = 2;
-            break;
-        case PAUSE:
-            State = 1;
-            break;
-        default:
-            break;
-    }
-    m_usb_tx_int(State);
-    m_usb_tx_string("\n");
-    
-    //Will determine values of oppgoal and opptarget
-}
-
 
 // identify stars and find position and orientation. store to robot_position & robot_orientation
 // returns true if all stars found, and false otherwise
 bool find_position(unsigned int star_data[]) {
-    
     float dist[4][4] = {{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0}}; // array for dsitances between stars
     float dist2[3][3] ={{0,0,0},{0,0,0},{0,0,0}};
     float robot_y_axis[2]= {1,0}; // robot reference frame y-axis
@@ -486,7 +420,7 @@ bool find_position(unsigned int star_data[]) {
                         C = c_guess;
                     } else {
                         A = c_guess;
-                        C = a_guess;;
+                        C = a_guess;
                     }
                     break;
                 }
@@ -649,13 +583,9 @@ bool find_position(unsigned int star_data[]) {
             
             break;
     }
-    
-    
-    
     // data is valid, return true
     return TRUE;
 }
-
 
 // computes dot product of two vectors
 float dot(float v1[2], float v2[2]) {
@@ -668,72 +598,279 @@ float dot(float v1[2], float v2[2]) {
     return result;
 }
 
-
-int findPuck(void) {
-    if (L1 > 512){
-        if (L1 > L2 && L1 > R1) {
+void findPuck(void) {
+    int maxchannel = 0;
+    float maxADC = 0;
+    int z = 0;
+    for (z = 0; z<8; z++) {
+        if (ADCdata[z]>maxADC) {
+            maxchannel = z;
+            maxADC = ADCdata[z];
+        }
+    }
+    
+    if (maxADC<100)
+    {maxchannel = 8;}
+    
+    switch (maxchannel) {
+        case 0:
+            puckdirr= 60;
+            puckdirl = 40;
             m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-            //   l_motor(20);
             m_port_set(m_port_ADDRESS,PORTG,PIN0);
-            lastPin = 0;
-        }
-    }
-    if (L2 > 512){
-        if (L2 > L3 && L2 > R1) {
+            m_port_clear(m_port_ADDRESS,PORTH,PIN0); //clear the h0 port corresponding to no adc
+            lastPin = PIN0;
+            //pindirection = 0;
+            break;
+        case 1:
+            puckdirr = 70;
+            puckdirl= 30;
             m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-            //   l_motor(40);
             m_port_set(m_port_ADDRESS,PORTG,PIN1);
-            lastPin = 1;
-        }
-    }
-    if (L3 > 512){
-        if (L3 > L4 && L3 > L2) {
+            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
+            lastPin = PIN1;
+            //pindirection = 1;
+            break;
+        case 2:
+            puckdirr = 20;
+            puckdirl= -20;
             m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-            //   l_motor(60);
             m_port_set(m_port_ADDRESS,PORTG,PIN2);
-            lastPin = 2;
-        }
-    }
-    if (L4 > 512){
-        if (L4 > R4 && L4 > L3) {
+            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
+            lastPin = PIN2;
+            //pindirection = 2;
+            break;
+        case 3:
+            puckdirr = 20;
+            puckdirl= -20;
             m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-            //  l_motor(80);
             m_port_set(m_port_ADDRESS,PORTG,PIN3);
-            lastPin = 3;
-        }
-    }
-    if (R4 > 512){
-        if (R4 > R3 && R4 > L4) {
+            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
+            lastPin = PIN3;
+            //pindirection = 3;
+            break;
+        case 4:
+            puckdirr = -20;
+            puckdirl= 20;
             m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-            //  r_motor(80);
             m_port_set(m_port_ADDRESS,PORTG,PIN4);
-            lastPin = 4;
-        }
-    }
-    if (R3 > 512){
-        if (R3 > R2 && R3 > R4) {
+            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
+            lastPin = PIN4;
+            //pindirection = 4;
+            break;
+        case 5:
+            
+            puckdirr = -20;
+            puckdirl= 20;
             m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-            // r_motor(60);
             m_port_set(m_port_ADDRESS,PORTG,PIN5);
-            lastPin = 5;
-        }
-    }
-    if (R2 > 512){
-        if (R2 > R1 && R2 > R3) {
+            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
+            lastPin = PIN5;
+            //pindirection = 5;
+            break;
+        case 6:
+            puckdirr = 30;
+            puckdirl= 70;
             m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-            // r_motor(40);
             m_port_set(m_port_ADDRESS,PORTG,PIN6);
-            lastPin = 6;
-        }
-    }
-    if (R1 > 512){
-        if (R1 > L1 && R1 > R2) {
+            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
+            lastPin = PIN6;
+            //pindirection = 6;
+            break;
+        case 7:
+            puckdirr = 40;
+            puckdirl= 60;
             m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-            //l_motor(60);
             m_port_set(m_port_ADDRESS,PORTG,PIN7);
-            lastPin = 7;
-        }
+            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
+            lastPin = PIN7;
+            //pindirection = 7;
+            break;
+        case 8:
+            puckdirr = 20;
+            puckdirl= -20;
+            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+            m_port_set(m_port_ADDRESS,PORTH,PIN0);
+            //pindirection = 8;
+            break;
+        default:
+            break;
     }
+}
+
+void left_motor(int leftcommand){
+    
+    if(leftcommand>0){
+        set(PORTB,PIN0); //Set B0 to go forward
+        clear(PORTB,PIN1);
+        OCR4B = leftcommand*timer0count;}
+    
+    else{clear(PORTB,PIN0); //Set B0 to go forward
+        set(PORTB,PIN1);
+        OCR4B = -1*leftcommand*timer0count;}
+}
+
+void right_motor(int rightcommand){
+    if(rightcommand>0){
+        OCR4A = rightcommand*timer0count;
+        set(PORTB,PIN2); //Set B2 to go forward
+        clear(PORTB,PIN3);}
+    else{
+        OCR4A = -1*rightcommand*timer0count;
+        clear(PORTB,PIN2); //Set B2 to go forward
+        set(PORTB,PIN3);}
+}
+
+////
+ISR(TIMER1_OVF_vect) {
+    m_wii_read(star_data);
+    valid = find_position(star_data);
+    if (valid) {
+        send_data[0] = (char)robot_position[0];//TX_ADDRESS;
+        send_data[1] = (char)robot_position[1];
+        send_data[2] = (char)(robot_orientation*127/6.3);
+        m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND); //Code for sending star data in footnote
+    }
+    // when timer oveflows (set for 10Hz), process and transmit data
+}
+
+
+// interupt when comm is recieved
+ISR(INT2_vect){
+    m_rf_read(buffer,PACKET_LENGTH_READ);
+    
+    char CommState = buffer[0];
+    switch (CommState) {
+        case PLAY:
+            State = 2;
+            break;
+        case PAUSE:
+            State = 1;
+            break;
+        default:
+            break;
+    }
+    m_usb_tx_int(State);
+    m_usb_tx_string("\n");
+    
+    //Will determine values of oppgoal and opptarget
+}
+
+
+//ADC interrupt
+ISR(ADC_vect){
+    //ADC Order = L1, L2, L3, L4, R4, R3, R2 ,R1
+    if (adcChannel == 0){
+        L1  = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
+        adcChannel++;
+        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
+        // Read from Pin F1 next
+        clear(ADCSRB,MUX5);
+        clear(ADMUX,MUX2);
+        clear(ADMUX,MUX1);
+        set(ADMUX,MUX0);
+        set(ADCSRA,ADIF);
+        
+    } else if (adcChannel == 1){
+        L2 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
+        adcChannel++;
+        m_red(ON);
+        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
+        // Read from Pin F4 next
+        clear(ADCSRB,MUX5);
+        set(ADMUX,MUX2);
+        clear(ADMUX,MUX1);
+        clear(ADMUX,MUX0);
+        set(ADCSRA,ADIF);
+        
+    } else if (adcChannel == 2){
+        L3 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
+        adcChannel++;
+        m_red(OFF);
+        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
+        // Read from Pin F5 next
+        clear(ADCSRB,MUX5);
+        set(ADMUX,MUX2);
+        clear(ADMUX,MUX1);
+        set(ADMUX,MUX0);
+        set(ADCSRA,ADIF);
+        
+    } else if (adcChannel == 3){
+        L4 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
+        adcChannel++;
+        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
+        // Read from Pin F6 next
+        clear(ADCSRB,MUX5);
+        set(ADMUX,MUX2);
+        set(ADMUX,MUX1);
+        clear(ADMUX,MUX0);
+        set(ADCSRA,ADIF);
+        
+        
+    } else if (adcChannel == 4){
+        R1 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
+        adcChannel++;
+        m_red(OFF);
+        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
+        // Read from Pin F7 next
+        clear(ADCSRB,MUX5);
+        set(ADMUX,MUX2);
+        set(ADMUX,MUX1);
+        set(ADMUX,MUX0);
+        set(ADCSRA,ADIF);
+        
+    } else if (adcChannel == 5){
+        R2 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
+        adcChannel++;
+        m_red(OFF);
+        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
+        // Read from Pin D4 next
+        set(ADCSRB,MUX5);
+        clear(ADMUX,MUX2);
+        clear(ADMUX,MUX1);
+        clear(ADMUX,MUX0);
+        set(ADCSRA,ADIF);
+        
+    } else if (adcChannel == 6){
+        R3 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
+        adcChannel++;
+        m_red(OFF);
+        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
+        // Read from Pin D6 next
+        set(ADCSRB,MUX5);
+        clear(ADMUX,MUX2);
+        clear(ADMUX,MUX1);
+        set(ADMUX,MUX0);
+        set(ADCSRA,ADIF);
+        
+    } else if (adcChannel == 7){
+        R4 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
+        adcChannel++;
+        m_red(OFF);
+        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
+        // Read from Pin F0 next
+        clear(ADCSRB,MUX5);
+        clear(ADMUX,MUX2);
+        clear(ADMUX,MUX1);
+        clear(ADMUX,MUX0);
+        set(ADCSRA,ADIF);
+        adcChannel = 0;
+        dataFlag = 1;
+    }
+    if (dataFlag){
+        ADCdata[0] = L1;
+        ADCdata[1] = L2;
+        ADCdata[2] = L3;
+        ADCdata[3] = L4;
+        ADCdata[4] = R4;
+        ADCdata[5] = R3;
+        ADCdata[6] = R2;
+        ADCdata[7] = R1;
+    }
+    dataFlag = 0;
+    // to allow conversions again
+    set(ADCSRA,ADEN);
+    set(ADCSRA,ADSC);
 }
 
 //// Useful Blocks of code
@@ -780,4 +917,78 @@ int findPuck(void) {
 //
 //                }
 //
+//
+//    if (L1 > 512){
+//        if (L1 > L2 && L1 > R1) {
+//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+//            //   l_motor(20);
+//            m_port_set(m_port_ADDRESS,PORTG,PIN0);
+//            lastPin = PIN0;
+//            pindirection = 0;
+//        }
+//    }
+//    if (L2 > 512){
+//        if (L2 > L3 && L2 > R1) {
+//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+//            //   l_motor(40);
+//            m_port_set(m_port_ADDRESS,PORTG,PIN1);
+//            lastPin = PIN1;
+//            pindirection = 1;
+//        }
+//    }
+//    if (L3 > 512){
+//        if (L3 > L4 && L3 > L2) {
+//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+//            //   l_motor(60);
+//            m_port_set(m_port_ADDRESS,PORTG,PIN2);
+//            lastPin = PIN2;
+//            pindirection = 2;
+//        }
+//    }
+//    if (L4 > 512){
+//        if (L4 > R4 && L4 > L3) {
+//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+//            //  l_motor(80);
+//            m_port_set(m_port_ADDRESS,PORTG,PIN3);
+//            lastPin = PIN3;
+//            pindirection = 3;
+//        }
+//    }
+//    if (R4 > 512){
+//        if (R4 > R3 && R4 > L4) {
+//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+//            //  r_motor(80);
+//            m_port_set(m_port_ADDRESS,PORTG,PIN4);
+//            lastPin = PIN4;
+//            pindirection = 4;
+//        }
+//    }
+//    if (R3 > 512){
+//        if (R3 > R2 && R3 > R4) {
+//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+//            // r_motor(60);
+//            m_port_set(m_port_ADDRESS,PORTG,PIN5);
+//            lastPin = PIN5;
+//            pindirection = 5;
+//        }
+//    }
+//    if (R2 > 512){
+//        if (R2 > R1 && R2 > R3) {
+//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+//            // r_motor(40);
+//            m_port_set(m_port_ADDRESS,PORTG,PIN6);
+//            lastPin = PIN6;
+//            pindirection = 6;
+//        }
+//    }
+//    if (R1 > 512){
+//        if (R1 > L1 && R1 > R2) {
+//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+//            //l_motor(60);
+//            m_port_set(m_port_ADDRESS,PORTG,PIN7);
+//            lastPin = PIN7;
+//            pindirection = 7;
+//        }
+//    }
+
 
