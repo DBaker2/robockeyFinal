@@ -10,21 +10,38 @@
 #include "m_rf.h"
 #include "m_usb.h"
 
-#define RX_ADDRESS 0x18 //Receipt address This isnt right but is working because im not receiving anything
+#define RX_ADDRESS 0x19 //Receipt address
 #define TX_ADDRESS 0x18 //Send address
-#define PACKET_LENGTH_SEND 3
-#define CHANNEL 2
+#define PACKET_LENGTH_SEND 10
+#define CHANNEL 1
 #define PACKET_LENGTH_READ 10
+#define PI 3.14
+
+//ADC
+#define m_port_ADDRESS 0x20
+
+//States
+#define Listen 1
+#define Qualify 2
+#define PuckFind 3
+#define GoToGoal 4
+#define ShootPuck 5
+#define Follow 6
+#define Celebration 7
+
+
+//COMMUNICATIONS
+#define PLAY -95
+#define PAUSE -92
 
 // STATES: Currently operating in only state 1 which has been repurposed to localisation and communication with the other M2. State 2 is motor driving depending on initial location and orientation. Change the right State=1 commands to State=2 commands to re-enable the qualifying code. Note: I have the states switch with receipt of a play command
 //LOCALISATION SENDING: I changed the send_data array to send the star positions for debugging, but change the packet lengths back and uncomment the send data stuff when we figure that out. Timer1 was not sending an interrupt so we commented it out, but ideally we will use it's 10hz overflow interrupt to find and send position.
 //MOTOR CONTROL: The motor commands are set by valuing a signed int "leftcommand" or "rightcommand" to duty cycle in percent with positive being forward and negative being backward. I havent been able to test with the h-bridge yet obviously, so we will have to make sure that we are setting and clearing the right pins for direction. Right and left motors could be switched too, depending on how we plug in the molex.
 
-
 char buffer[PACKET_LENGTH_READ] = {0,0,0,0,0,0,0,0,0,0}; //data to be received
 char send_data[PACKET_LENGTH_SEND] = {0,0,0};//,0,0,0,0,0,0,0,0}; // data to be sent to game controller
 
-
+//Localisation variables
 unsigned int star_data[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
 unsigned int star_data2[12] = {0,0,0,0,0,0,0,0,0};
 float robot_position[2] = {0,0}; // vector for robot position (x and y)
@@ -32,32 +49,32 @@ float robot_orientation= 0; // vector for robot orientation (direction fo y-axis
 volatile bool timer1_flag = 0; // set high when timer1 overflows
 float pixel_cm_conversion = 40.0/125.0; // conversion from pixels to cm, TBD
 bool valid = 0; // true when position m_wii data is valid
-//int dutyBLeft = 0; //Percentage of duty cycle left motor
-//int dutyARight = 0; //Percentage of duty cycle right motor
+//State variables
 float target = 0;  //Target angle for driving across rink
 int timer0count = 2; //0xff/100
 int leftcommand = 0; //Duty cycle and direction of left motor
 int rightcommand = 0; //Duty cycle and direction of right motor
-int State = 2;
+volatile int State = 1;
 float postarget = 0;
 int sign = 0;
 int checkside = 0;
 int testvar = 0;
-//float x = 0;
-//float y = 0;
-//float theta = 0;
-//int skip = 0;
-//int LocState =0;
-//float max = 0;
-//int k = 0;
-//float Ax = 0;
-//float Ay = 0;
-//float Cx = 0;
-//float Cy = 0;
-//float ox = 0;
-//float oy = 0;
-
-
+float direction = 0;
+float opptarget = 0; //angle of opponents goal
+volatile int lastPin = 0;
+volatile int oppgoal = -130; //x position of opponents goal - will  be determined by comm or switch
+//ADC variables
+volatile int adcChannel = 0;
+int L1;
+int L2;
+int L3;
+int L4;
+int R1;
+int R2;
+int R3;
+int R4;
+int dataFlag;
+int limitswitch = 0;
 
 void init(void);
 bool find_position(unsigned int star_data[]);
@@ -67,8 +84,7 @@ float dot(float v1[], float v2[]);
 //void left_spin(dutyARight);
 void left_motor(int leftcommand);
 void right_motor(int rightcommand);
-
-
+int findpuck(void);
 
 int main(void)
 {
@@ -76,83 +92,141 @@ int main(void)
     while(TRUE) {
         
         switch (State) { //** Necessary states for 11/24: 1 = Wait |  2 = drive to opposite side of rink
-            case 1: //Wait for PLAY command
-                
-                m_wait(300);
-                State = 2;
+            case Listen: //Wait for PLAY command
+                leftcommand = 0;
+                rightcommand = 0;
+                left_motor(leftcommand);
+                right_motor(rightcommand);
                 break;
                 
-            case 2:
-                
-//                rightcommand = -50;
-//                leftcommand = -50;
-//                right_motor(rightcommand);
-//                left_motor(leftcommand);
+            case Qualify:
                 
                 m_wait(150);
                 
-                if (checkside<10) {
-                    checkside++;
-                
-                    if (robot_position[0]<0){
-                        target = 0;
+                if (checkside == 0) {
+                    checkside = 1;
+                    
+                    if (robot_position[0] < 0){
+                        target = (3*PI)/2;
                         postarget = 100;
                     }
                     
-                    else {target = 3.14;
+                    else {
+                        target = PI/2;
                         postarget = -100;
                     }
+                    
+                    m_wait(100);
                 }
                 
-                m_wait(100);
                 
-                if (robot_position[0]<(postarget)) {
+                
+                if (abs(robot_position[0])<(abs(postarget))) {
                     
-                    if (robot_orientation>(4+target)) { //right spin
-                        leftcommand = 50;
-                        rightcommand = -50;
+                    if (robot_orientation>(0.17+target)) { //right spin
+                        leftcommand = 20;
+                        rightcommand = -20;
                         left_motor(leftcommand);
                         right_motor(rightcommand);
-                        m_green(ON);
-                        
-                    }
-                    m_wait(50);
-                    
-                    
-                    if (robot_orientation<(-4+target)) { //left spin
-                        leftcommand = -50;
-                        rightcommand = 50;
-                        left_motor(leftcommand);
-                        right_motor(rightcommand);
-                        m_green(OFF);
-                    }
-                    m_wait(50);
-                    
-                    if ((-4+target)<robot_orientation & robot_orientation<(4+target)) {
-                        //forward
-                        leftcommand = 50;
-                        rightcommand = 50;
-                        left_motor(leftcommand);
-                        right_motor(rightcommand);
-                    }
-                    m_wait(50);
 
+                    }
+                    
+                    
+                    
+                    if (robot_orientation<(-0.17+target)) { //left spin
+                        leftcommand = -20;
+                        rightcommand = 20;
+                        left_motor(leftcommand);
+                        right_motor(rightcommand);
+
+                    }
+                    
+                    
+                    if ((-0.17+target)<robot_orientation && robot_orientation<(0.17+target)) {
+                        //forward
+                        leftcommand = 20;
+                        rightcommand = 20;
+                        left_motor(leftcommand);
+                        right_motor(rightcommand);
+                    }
+                    
+                    
                 } else {
                     State=1;
                 }
                 break;
                 
-        
-        
-    default:
-        State = 1;
-        
-        break;
-        
-        }
-        }
-}
+                
+            case PuckFind:
+                //Transition to: Play Command, Puck Lost, Team Lost Puck, Puck Shot
+                //Transition from: Got the Puck, Team has Puck
+                
+                direction = abs((lastPin-4)*25); // puck direction = 1-8 for each ptr array
+                rightcommand = (direction);
+                leftcommand = (100-direction);
+                left_motor(leftcommand);
+                right_motor(rightcommand);
+                
+                if (limitswitch){
+                    State = GoToGoal;}
+                
+            case GoToGoal:
+                //Transition to: Got the Puck, Run into Opponent??
+                //Transition from: No Obstacles, Lost the puck
+                
+                
+                if (abs(robot_position[0])<(abs(oppgoal))) {
+                    
+                    if (robot_orientation>(0.17+opptarget)) { //right spin
+                        leftcommand = 20;
+                        rightcommand = -20;
+                        left_motor(leftcommand);
+                        right_motor(rightcommand);
+                    }
+                    
+                    
+                    
+                    if (robot_orientation<(-0.17+opptarget)) { //left spin
+                        leftcommand = -20;
+                        rightcommand = 20;
+                        left_motor(leftcommand);
+                        right_motor(rightcommand);
+                    }
+                    
+                    
+                    if ((-0.17+opptarget)<robot_orientation && robot_orientation<(0.17+opptarget)) {
+                        //forward
+                        leftcommand = 80;
+                        rightcommand = 80;
+                        left_motor(leftcommand);
+                        right_motor(rightcommand);
+                    }
+                }
+
+            case Follow:
+                //Transition to: Team has Puck
+                //Transition from: Team lost Puck
+                
     
+            case ShootPuck:
+                //Transition to: No Obstacles
+                //Transition from: Default to Puck seek
+                
+            case Celebration:
+                //Transition to: Goal interrupt
+                //Transition from: Go to wait
+                
+            default:
+                State = 1;
+                
+                break;
+                
+        }
+    }
+}
+
+// Background interrupts: Timer 0: 10hz interrupt finds location and puck direction | RF interrupt for Play/Pause/Listen, Enemy Position, and Teammate Commands
+
 
 void left_motor(int leftcommand){
     
@@ -166,6 +240,7 @@ void left_motor(int leftcommand){
         set(PORTB,PIN1);
         OCR4B = -1*leftcommand*timer0count;}
 }
+
 
 void right_motor(int rightcommand){
     if(rightcommand>0){
@@ -199,8 +274,8 @@ void init(void) {
     m_wii_open();
     
     // timer 1 set up (running at approx 10Hz)
-//    set(DDRB,PIN7);
-//    OCR1C = 0; //Interrupt when TCNT1 = OCR1C = 0
+    //    set(DDRB,PIN7);
+    //    OCR1C = 0; //Interrupt when TCNT1 = OCR1C = 0
     
     clear(TCCR1B, CS12); // prescaler to /64
     set(TCCR1B, CS11);   // ^
@@ -217,7 +292,7 @@ void init(void) {
     
     sei();
     
-    // Timer 0 for PWM
+    // Timer 4 for PWM
     
     OCR4A = 0; // initialize duty cycle to zero
     OCR4B = 0;
@@ -227,9 +302,9 @@ void init(void) {
     set(DDRB,PIN6); //Compare B pin
     
     
-    set(TCCR4B, CS43); //  set prescaler to /128
-    clear(TCCR4B, CS42); // ^
-    set(TCCR4B, CS41); // ^
+    set(TCCR4B, CS43); //  set prescaler to /256
+    set(TCCR4B, CS42); // ^
+    clear(TCCR4B, CS41); // ^
     clear(TCCR4B, CS40); // ^
     
     clear(TCCR4D, WGM41); // Up to OCR4C, PWM mode
@@ -244,8 +319,52 @@ void init(void) {
     set(TCCR4A, PWM4B); // clear at OCR4B, set at 0xFF
     set(TCCR4A, COM4B1); // ^
     clear(TCCR4A, COM4B0); // ^
+
+    //ADC init
+    // set the reference voltage to V_cc (5V)
+    clear(ADMUX,REFS1);
+    set(ADMUX,REFS0);
+    
+    // set the ADC prescaler to /128
+    set(ADCSRA,ADPS2);
+    set(ADCSRA,ADPS1);
+    set(ADCSRA,ADPS0);
+    
+    // disable digital inputs
+    set(DIDR0,ADC0D);
+    set(DIDR0,ADC1D);
+    set(DIDR0,ADC4D);
+    set(DIDR0,ADC5D);
+    set(DIDR0,ADC6D);
+    set(DIDR0,ADC7D);
+    set(DIDR2,ADC8D);
+    
+    //enable interrupt
+    
+    clear(ADCSRB,MUX5);
+    clear(ADMUX,MUX2);
+    clear(ADMUX,MUX1);
+    clear(ADMUX,MUX0);
+    set(ADCSRA,ADIE);
+    
+    // start conversion process
+    set(ADCSRA,ADEN); //enable
+    set(ADCSRA,ADSC); //start conversion
+    
+    
+    /////////////////////////// m_port register G to output //////////////////////
+    m_port_set(m_port_ADDRESS,DDRG,0);
+    m_port_set(m_port_ADDRESS,DDRG,1);
+    m_port_set(m_port_ADDRESS,DDRG,2);
+    m_port_set(m_port_ADDRESS,DDRG,3);
+    m_port_set(m_port_ADDRESS,DDRG,4);
+    m_port_set(m_port_ADDRESS,DDRG,5);
+    m_port_set(m_port_ADDRESS,DDRG,6);
+    m_port_set(m_port_ADDRESS,DDRG,7);
+
     
 }
+
 
 ////
 ISR(TIMER1_OVF_vect) {
@@ -255,14 +374,14 @@ ISR(TIMER1_OVF_vect) {
         send_data[0] = (char)robot_position[0];//TX_ADDRESS;
         send_data[1] = (char)robot_position[1];
         send_data[2] = (char)(robot_orientation*127/6.3);
-//        send_data[0] = (char)(star_data[0]/10);//RX_ADDRESS;
-//        send_data[1] = (char)(star_data[1]/10);//RX_ADDRESS;;
-//        send_data[2] = (char)(star_data[3]/10);//RX_ADDRESS;
-//        send_data[3] = (char)(star_data[4]/10);//RX_ADDRESS;
-//        send_data[4] = (char)(star_data[6]/10);//RX_ADDRESS;
-//        send_data[5] = (char)(star_data[7]/10);//RX_ADDRESS;
-//        send_data[6] = (char)(star_data[9]/10);//RX_ADDRESS;
-//        send_data[7] = (char)(star_data[10]/10);//RX_ADDRESS;
+        //        send_data[0] = (char)(star_data[0]/10);//RX_ADDRESS;
+        //        send_data[1] = (char)(star_data[1]/10);//RX_ADDRESS;;
+        //        send_data[2] = (char)(star_data[3]/10);//RX_ADDRESS;
+        //        send_data[3] = (char)(star_data[4]/10);//RX_ADDRESS;
+        //        send_data[4] = (char)(star_data[6]/10);//RX_ADDRESS;
+        //        send_data[5] = (char)(star_data[7]/10);//RX_ADDRESS;
+        //        send_data[6] = (char)(star_data[9]/10);//RX_ADDRESS;
+        //        send_data[7] = (char)(star_data[10]/10);//RX_ADDRESS;
         
         m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND);
     }
@@ -270,11 +389,32 @@ ISR(TIMER1_OVF_vect) {
 }
 
 
+// interupt when comm is recieved
+ISR(INT2_vect){
+    m_rf_read(buffer,PACKET_LENGTH_READ);
+    
+    char CommState = buffer[0];
+    switch (CommState) {
+        case PLAY:
+            State = 2;
+            break;
+        case PAUSE:
+            State = 1;
+            break;
+        default:
+            break;
+    }
+    m_usb_tx_int(State);
+    m_usb_tx_string("\n");
+    
+    //Will determine values of oppgoal and opptarget
+}
+
+
 // identify stars and find position and orientation. store to robot_position & robot_orientation
 // returns true if all stars found, and false otherwise
-
 bool find_position(unsigned int star_data[]) {
-   
+    
     float dist[4][4] = {{0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0}}; // array for dsitances between stars
     float dist2[3][3] ={{0,0,0},{0,0,0},{0,0,0}};
     float robot_y_axis[2]= {1,0}; // robot reference frame y-axis
@@ -301,19 +441,19 @@ bool find_position(unsigned int star_data[]) {
         }
     }
     
-    if (LocIndex<2) {
+    if (LocIndex < 2) {
         LocState = 1;}
-    if (LocIndex=2) {
-        LocState =2;}
-   if (LocIndex>2) {
-       LocState = 3;}
+    if (LocIndex == 2) {
+        LocState = 2 ;}
+    if (LocIndex > 2) {
+        LocState = 3;}
     
-//    if (LocIndex=2) {
-//        LocState = 2;}
-//    
-//    if (LocIndex>=4) {
-//        LocState = 3;}
-
+    //    if (LocIndex=2) {
+    //        LocState = 2;}
+    //
+    //    if (LocIndex>=4) {
+    //        LocState = 3;}
+    
     
     
     switch (LocState) {
@@ -337,7 +477,7 @@ bool find_position(unsigned int star_data[]) {
             
             
             // Identify A and C (using fact the B and D are both father from C than A)
-
+            
             for (k = 0; k < 4; k++) {
                 // only examine distances not between A and C
                 if ((k != a_guess) && (k != c_guess)) {
@@ -390,14 +530,16 @@ bool find_position(unsigned int star_data[]) {
             // calculate robot position using output from homogeneous transform matric
             float x = -1*((-1)*cos(theta)*(ox-512)-sin(theta)*(oy-384)); // added an extra inversion
             float y = sin(theta)*(ox-512)-cos(theta)*(oy-384);
-
-            // orientation measured relative to rink coordinate frame in radians, counter-clockwise
-            float orientation = theta; // no longer inverting
+            
             
             // store values to arrays (defined above so the can be accessed by main, C functions can't return an array)
             robot_position[0] = pixel_cm_conversion*x; // convert from pixels to cm
             robot_position[1] = pixel_cm_conversion*y; // convert from pixels to cm
-            robot_orientation = orientation;
+            if (theta < 0) {
+                robot_orientation = (2*PI) + theta;
+            } else {
+                robot_orientation = theta;
+            }
             
             break;
             
@@ -431,7 +573,7 @@ bool find_position(unsigned int star_data[]) {
                 
             }
             
-
+            
             // Identify A and C (using fact the B and D are both father from C than A)
             for (k = 0; k < 3; k++) {
                 // only examine distances not between A and C
@@ -446,36 +588,36 @@ bool find_position(unsigned int star_data[]) {
                     break;
                 }
             }
-
-
             
-//            // Identify B and D (using ratio, now that A and C are known)
-//            for (k = 0; k < 4; k++) {
-//                if ((k != A) && (k != C)) {
-//                    float r = (dist[C][k])/(dist[A][k]);
-//                    if ((r > (B_ratio-tol)) && (r < (B_ratio+tol))) {
-//                        B = k;
-//                        D = 10 - (A + B + C);
-//                    } else {
-//                        D = k;
-//                        B = 10 - (A + C + D);
-//                    }
-//                    break;
-//                }
-//            }
+            
+            
+            //            // Identify B and D (using ratio, now that A and C are known)
+            //            for (k = 0; k < 4; k++) {
+            //                if ((k != A) && (k != C)) {
+            //                    float r = (dist[C][k])/(dist[A][k]);
+            //                    if ((r > (B_ratio-tol)) && (r < (B_ratio+tol))) {
+            //                        B = k;
+            //                        D = 10 - (A + B + C);
+            //                    } else {
+            //                        D = k;
+            //                        B = 10 - (A + C + D);
+            //                    }
+            //                    break;
+            //                }
+            //            }
             
             // extract A and C positions from data
             float Ax1 = star_data2[3*A];
             float Ay1 = star_data2[(3*A)+1];
             float Cx1 = star_data2[3*C];
             float Cy1 = star_data2[(3*C)+1];
-//            float Bx = star_data[3*B]; //Non axial star data for plotting raw star data
-//            float By = star_data[(3*B)+1];
-//            float Dx = star_data[3*D];
-//            float Dy = star_data[(3*D)+1];
-//
-//            
-//            
+            //            float Bx = star_data[3*B]; //Non axial star data for plotting raw star data
+            //            float By = star_data[(3*B)+1];
+            //            float Dx = star_data[3*D];
+            //            float Dy = star_data[(3*D)+1];
+            //
+            //
+            //
             // calculate origin
             float ox1 = (Ax1 + Cx1)/2;
             float oy1 = (Ay1 + Cy1)/2;
@@ -486,10 +628,10 @@ bool find_position(unsigned int star_data[]) {
             // calculate robot position using output from homogeneous transform matric
             float x1 = -1*((-1)*cos(theta1)*(ox1-512)-sin(theta1)*(oy1-384)); // added an extra inversion
             float y1 = sin(theta1)*(ox1-512)-cos(theta1)*(oy1-384);
-
+            
             // orientation measured relative to rink coordinate frame in radians, counter-clockwise
             float orientation1 = theta1; // no longer inverting
-
+            
             // store values to arrays (defined above so the can be accessed by main, C functions can't return an array)
             robot_position[0] = pixel_cm_conversion*x1; // convert from pixels to cm
             robot_position[1] = pixel_cm_conversion*y1; // convert from pixels to cm
@@ -501,27 +643,18 @@ bool find_position(unsigned int star_data[]) {
             m_red(ON);
             m_green(OFF);
             return false;
-        
+            
         default:
             LocState = 3;
             
             break;
     }
     
-
+    
     
     // data is valid, return true
     return TRUE;
 }
-
-//ISR(INT2_vect){
-//    m_rf_read(buffer,PACKET_LENGTH_READ);
-//    m_red(TOGGLE);
-//    if (buffer[0] = 0xA1) { //If receive play command send to state 1
-//        State = 2;}
-//    else {State = 1;}  //If received command other than play, continue to wait.
-//}
-//
 
 
 // computes dot product of two vectors
@@ -534,6 +667,75 @@ float dot(float v1[2], float v2[2]) {
     
     return result;
 }
+
+
+int findPuck(void) {
+    if (L1 > 512){
+        if (L1 > L2 && L1 > R1) {
+            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+            //   l_motor(20);
+            m_port_set(m_port_ADDRESS,PORTG,PIN0);
+            lastPin = 0;
+        }
+    }
+    if (L2 > 512){
+        if (L2 > L3 && L2 > R1) {
+            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+            //   l_motor(40);
+            m_port_set(m_port_ADDRESS,PORTG,PIN1);
+            lastPin = 1;
+        }
+    }
+    if (L3 > 512){
+        if (L3 > L4 && L3 > L2) {
+            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+            //   l_motor(60);
+            m_port_set(m_port_ADDRESS,PORTG,PIN2);
+            lastPin = 2;
+        }
+    }
+    if (L4 > 512){
+        if (L4 > R4 && L4 > L3) {
+            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+            //  l_motor(80);
+            m_port_set(m_port_ADDRESS,PORTG,PIN3);
+            lastPin = 3;
+        }
+    }
+    if (R4 > 512){
+        if (R4 > R3 && R4 > L4) {
+            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+            //  r_motor(80);
+            m_port_set(m_port_ADDRESS,PORTG,PIN4);
+            lastPin = 4;
+        }
+    }
+    if (R3 > 512){
+        if (R3 > R2 && R3 > R4) {
+            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+            // r_motor(60);
+            m_port_set(m_port_ADDRESS,PORTG,PIN5);
+            lastPin = 5;
+        }
+    }
+    if (R2 > 512){
+        if (R2 > R1 && R2 > R3) {
+            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+            // r_motor(40);
+            m_port_set(m_port_ADDRESS,PORTG,PIN6);
+            lastPin = 6;
+        }
+    }
+    if (R1 > 512){
+        if (R1 > L1 && R1 > R2) {
+            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+            //l_motor(60);
+            m_port_set(m_port_ADDRESS,PORTG,PIN7);
+            lastPin = 7;
+        }
+    }
+}
+
 //// Useful Blocks of code
 //
 //                send_data[0] = (char)(star_data[0]/10);//RX_ADDRESS;
