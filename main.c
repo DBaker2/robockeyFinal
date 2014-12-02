@@ -34,7 +34,7 @@
 //COMMUNICATIONS
 #define PLAY -95
 #define PAUSE -92
-#define COMM_TEST
+#define COMM_TEST 0xA0
 
 //OTHER CONSTANTS
 #define RED 1
@@ -790,6 +790,16 @@ ISR(INT2_vect){
     
     char CommState = buffer[0];
     switch (CommState) {
+        case COMM_TEST:
+            if (goal == RED) {
+                red_LED(ON);
+                m_wait(100);
+                red_LED(OFF);
+            } else {
+                blue_LED(ON);
+                m_wait(100);
+                blue_LED(OFF);
+            }
         case PLAY:
             State = PuckFind;
             break;
