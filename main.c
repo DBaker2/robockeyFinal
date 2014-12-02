@@ -39,6 +39,7 @@
 //OTHER CONSTANTS
 #define RED 1
 #define BLUE 2
+#define FORWARD 8
 
 // STATES: Currently operating in only state 1 which has been repurposed to localisation and communication with the other M2. State 2 is motor driving depending on initial location and orientation. Change the right State=1 commands to State=2 commands to re-enable the qualifying code. Note: I have the states switch with receipt of a play command
 //LOCALISATION SENDING: I changed the send_data array to send the star positions for debugging, but change the packet lengths back and uncomment the send data stuff when we figure that out. Timer1 was not sending an interrupt so we commented it out, but ideally we will use it's 10hz overflow interrupt to find and send position.
@@ -90,6 +91,8 @@ int limitswitch = 0;
 bool goalSwitchBlink = 1; // flag to only blink once to confirm goal
 int goal = 0; // goal to go to, set by switch (RED and BLUE are defined)
 
+volatile bool send_flag = 0;
+
 void init(void);
 bool find_position(unsigned int star_data[]);
 float dot(float v1[], float v2[]);
@@ -116,21 +119,37 @@ int main(void){
         m_usb_tx_string("  L3 = ");
         m_usb_tx_int(L3);
         m_usb_tx_string("  ");
-        m_usb_tx_string("L4 = ");
+        m_usb_tx_string(" L4 = ");
         m_usb_tx_int(L4);
         m_usb_tx_string("  ");
-        m_usb_tx_string("R1 = ");
+        m_usb_tx_string(" R1 = ");
         m_usb_tx_int(R1);
         m_usb_tx_string("  ");
-        m_usb_tx_string("R2 = ");
+        m_usb_tx_string(" R2 = ");
         m_usb_tx_int(R2);
         m_usb_tx_string("  ");
-        m_usb_tx_string("R3 = ");
+        m_usb_tx_string(" R3 = ");
         m_usb_tx_int(R3);
         m_usb_tx_string("  ");
-        m_usb_tx_string("R4 = ");
+        m_usb_tx_string(" R4 = ");
         m_usb_tx_int(R4);
+        m_usb_tx_string(" last pin = ");
+        m_usb_tx_int(lastPin);
         m_usb_tx_string("\n");
+
+        if (send_flag = 1){
+        	m_wii_read(star_data);
+    		valid = find_position(star_data);
+   			if (valid) {
+        		send_data[0] = (char)robot_position[0];//TX_ADDRESS;
+        		send_data[1] = (char)robot_position[1];
+        		send_data[2] = (char)(robot_orientation*127/6.3);
+        		// WHY DOESN"T m_RF WORK???
+        		//m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND); //Code for sending star data in footnote
+    		}
+       		send_flag = 0;
+       	}
+
         
         switch (State) { //** Necessary states for 11/24: 1 = Wait |  2 = drive to opposite side of rink
             case Listen: //Wait for PLAY command
@@ -676,14 +695,21 @@ void findPuck(void) {
             maxADC = ADCdata[z];
         }
     }
+
+    // if both L1 and R1 are high, drive forward!
+    if (maxchannel ==  0 || maxchannel == 7) {
+    	if (abs(ADCdata[0] - ADCdata[7]) < 100) {
+    		maxchannel = FORWARD;
+    	}
+    }
     
     if (maxADC<100)
     {maxchannel = 8;}
     
     switch (maxchannel) {
         case 0:
-            puckdirr= 60;
-            puckdirl = 40;
+            puckdirr= 20;
+            puckdirl = -20;
 //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
 //            m_port_set(m_port_ADDRESS,PORTG,PIN0);
 //            m_port_clear(m_port_ADDRESS,PORTH,PIN0); //clear the h0 port corresponding to no adc
@@ -691,8 +717,8 @@ void findPuck(void) {
             //pindirection = 0;
             break;
         case 1:
-            puckdirr = 70;
-            puckdirl= 30;
+            puckdirr = 20;
+            puckdirl= -20;
 //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
 //            m_port_set(m_port_ADDRESS,PORTG,PIN1);
 //            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
@@ -727,7 +753,6 @@ void findPuck(void) {
             //pindirection = 4;
             break;
         case 5:
-            
             puckdirr = -20;
             puckdirl= 20;
 //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
@@ -737,8 +762,8 @@ void findPuck(void) {
             //pindirection = 5;
             break;
         case 6:
-            puckdirr = 30;
-            puckdirl= 70;
+            puckdirr = -20;
+            puckdirl= 20;
 //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
 //            m_port_set(m_port_ADDRESS,PORTG,PIN6);
 //            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
@@ -746,15 +771,21 @@ void findPuck(void) {
             //pindirection = 6;
             break;
         case 7:
-            puckdirr = 40;
-            puckdirl= 60;
+            puckdirr = -20;
+            puckdirl= 20;
 //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
 //            m_port_set(m_port_ADDRESS,PORTG,PIN7);
 //            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
             lastPin = PIN7;
             //pindirection = 7;
             break;
-        case 8:
+
+        case FORWARD:
+        	puckdirr = 50;
+        	puckdirl = 50;
+        	break;
+
+        case 9:
             puckdirr = 20;
             puckdirl= -20;
 //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
@@ -807,15 +838,8 @@ void blue_LED(bool status) {
 
 ////
 ISR(TIMER1_OVF_vect) {
-    m_wii_read(star_data);
-    valid = find_position(star_data);
-    if (valid) {
-        send_data[0] = (char)robot_position[0];//TX_ADDRESS;
-        send_data[1] = (char)robot_position[1];
-        send_data[2] = (char)(robot_orientation*127/6.3);
-        m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND); //Code for sending star data in footnote
-    }
     // when timer oveflows (set for 10Hz), process and transmit data
+    send_flag = 1;
 }
 
 
