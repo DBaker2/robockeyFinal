@@ -34,7 +34,7 @@
 //COMMUNICATIONS
 #define PLAY -95
 #define PAUSE -92
-#define COMM_TEST 0xA0
+#define COMM_TEST -96
 
 //OTHER CONSTANTS
 #define RED 1
@@ -786,6 +786,7 @@ ISR(TIMER1_OVF_vect) {
 
 // interupt when comm is recieved
 ISR(INT2_vect){
+    //red_LED(ON);
     m_rf_read(buffer,PACKET_LENGTH_READ);
     
     char CommState = buffer[0];
