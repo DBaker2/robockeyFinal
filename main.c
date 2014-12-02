@@ -106,6 +106,32 @@ int main(void){
     init();
     while(TRUE) {
         
+        red_LED(OFF);
+        blue_LED(ON);
+        m_usb_tx_string("L1 = ");
+        m_usb_tx_int(L1);
+        m_usb_tx_string("  ");
+        m_usb_tx_string(" L2= ");
+        m_usb_tx_int(L2);
+        m_usb_tx_string("  L3 = ");
+        m_usb_tx_int(L3);
+        m_usb_tx_string("  ");
+        m_usb_tx_string("L4 = ");
+        m_usb_tx_int(L4);
+        m_usb_tx_string("  ");
+        m_usb_tx_string("R1 = ");
+        m_usb_tx_int(R1);
+        m_usb_tx_string("  ");
+        m_usb_tx_string("R2 = ");
+        m_usb_tx_int(R2);
+        m_usb_tx_string("  ");
+        m_usb_tx_string("R3 = ");
+        m_usb_tx_int(R3);
+        m_usb_tx_string("  ");
+        m_usb_tx_string("R4 = ");
+        m_usb_tx_int(R4);
+        m_usb_tx_string("\n");
+        
         switch (State) { //** Necessary states for 11/24: 1 = Wait |  2 = drive to opposite side of rink
             case Listen: //Wait for PLAY command
                 leftcommand = 0;
@@ -249,8 +275,16 @@ int main(void){
                 break;
                 
         }
+        
+            // send adc data
+        
+            
+            // dataFlag = 0;
+
+
     }
-}
+    
+    }
 
 // Background interrupts: Timer 0: 10hz interrupt finds location and puck direction | RF interrupt for Play/Pause/Listen, Enemy Position, and Teammate Commands
 
@@ -316,7 +350,7 @@ void init(void) {
     clear(TCCR4D, WGM41); // Up to OCR4C, PWM mode
     clear(TCCR4D, WGM40); // ^
     
-    //Output compare A for PWM of Left Motor ** PIN C6
+    //Output compare A for PWM of Left Motor ** PIN C7
     set(TCCR4A, PWM4A); // clear at OCR4A, set at 0xFF
     set(TCCR4A, COM4A1); // ^
     clear(TCCR4A, COM4A0); // ^
@@ -650,45 +684,45 @@ void findPuck(void) {
         case 0:
             puckdirr= 60;
             puckdirl = 40;
-            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-            m_port_set(m_port_ADDRESS,PORTG,PIN0);
-            m_port_clear(m_port_ADDRESS,PORTH,PIN0); //clear the h0 port corresponding to no adc
+//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+//            m_port_set(m_port_ADDRESS,PORTG,PIN0);
+//            m_port_clear(m_port_ADDRESS,PORTH,PIN0); //clear the h0 port corresponding to no adc
             lastPin = PIN0;
             //pindirection = 0;
             break;
         case 1:
             puckdirr = 70;
             puckdirl= 30;
-            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-            m_port_set(m_port_ADDRESS,PORTG,PIN1);
-            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
+//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+//            m_port_set(m_port_ADDRESS,PORTG,PIN1);
+//            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
             lastPin = PIN1;
             //pindirection = 1;
             break;
         case 2:
             puckdirr = 20;
             puckdirl= -20;
-            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-            m_port_set(m_port_ADDRESS,PORTG,PIN2);
-            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
+//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+//            m_port_set(m_port_ADDRESS,PORTG,PIN2);
+//            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
             lastPin = PIN2;
             //pindirection = 2;
             break;
         case 3:
             puckdirr = 20;
             puckdirl= -20;
-            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-            m_port_set(m_port_ADDRESS,PORTG,PIN3);
-            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
+//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+//            m_port_set(m_port_ADDRESS,PORTG,PIN3);
+//            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
             lastPin = PIN3;
             //pindirection = 3;
             break;
         case 4:
             puckdirr = -20;
             puckdirl= 20;
-            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-            m_port_set(m_port_ADDRESS,PORTG,PIN4);
-            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
+//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+//            m_port_set(m_port_ADDRESS,PORTG,PIN4);
+//            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
             lastPin = PIN4;
             //pindirection = 4;
             break;
@@ -696,35 +730,35 @@ void findPuck(void) {
             
             puckdirr = -20;
             puckdirl= 20;
-            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-            m_port_set(m_port_ADDRESS,PORTG,PIN5);
-            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
+//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+//            m_port_set(m_port_ADDRESS,PORTG,PIN5);
+//            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
             lastPin = PIN5;
             //pindirection = 5;
             break;
         case 6:
             puckdirr = 30;
             puckdirl= 70;
-            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-            m_port_set(m_port_ADDRESS,PORTG,PIN6);
-            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
+//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+//            m_port_set(m_port_ADDRESS,PORTG,PIN6);
+//            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
             lastPin = PIN6;
             //pindirection = 6;
             break;
         case 7:
             puckdirr = 40;
             puckdirl= 60;
-            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-            m_port_set(m_port_ADDRESS,PORTG,PIN7);
-            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
+//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+//            m_port_set(m_port_ADDRESS,PORTG,PIN7);
+//            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
             lastPin = PIN7;
             //pindirection = 7;
             break;
         case 8:
             puckdirr = 20;
             puckdirl= -20;
-            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-            m_port_set(m_port_ADDRESS,PORTH,PIN0);
+//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+//            m_port_set(m_port_ADDRESS,PORTH,PIN0);
             //pindirection = 8;
             break;
         default:
