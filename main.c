@@ -55,7 +55,7 @@ float target = 0;  //Target angle for driving across rink
 int timer0count = 2; //0xff/100
 int leftcommand = 0; //Duty cycle and direction of left motor
 int rightcommand = 0; //Duty cycle and direction of right motor
-volatile int State = PuckFind;
+volatile int State = Listen;
 float postarget = 0;
 int sign = 0;
 int checkside = 0;
@@ -103,6 +103,15 @@ int main(void){
                 rightcommand = 0;
                 left_motor(leftcommand);
                 right_motor(rightcommand);
+                if (check(PIND, PIN3)) {
+                    set(PORTB, PIN4);
+                    clear(PORTC, PIN6);
+                    oppgoal = 130; // may need to be switched
+                } else {
+                    set(PORTC, PIN6);
+                    clear(PORTB, PIN4);
+                    oppgoal = -130; // may need to be switched
+                }
                 break;
                 
             case Qualify:
@@ -238,6 +247,11 @@ void init(void) {
     set(DDRB,PIN1); //Left Motor clear forward
     set(DDRB,PIN2); //Right Motor set forward
     set(DDRB,PIN3); //Right Motor clear forward
+    
+    //pins for status LEDS
+    set(DDRB, PIN4); // output pin for red LED
+    set(DDRC, PIN6); // output pin for blue LED
+    clear(DDRD, PIN3); //input for goal switch
     
     // open and initialize rf communications
     m_rf_open(CHANNEL, RX_ADDRESS, PACKET_LENGTH_SEND);
@@ -742,10 +756,10 @@ ISR(INT2_vect){
     char CommState = buffer[0];
     switch (CommState) {
         case PLAY:
-            State = 2;
+            State = PuckFind;
             break;
         case PAUSE:
-            State = 1;
+            State = Listen;
             break;
         default:
             break;
@@ -774,7 +788,6 @@ ISR(ADC_vect){
     } else if (adcChannel == 1){
         L2 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
         adcChannel++;
-        m_red(ON);
         clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
         // Read from Pin F4 next
         clear(ADCSRB,MUX5);
@@ -786,7 +799,6 @@ ISR(ADC_vect){
     } else if (adcChannel == 2){
         L3 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
         adcChannel++;
-        m_red(OFF);
         clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
         // Read from Pin F5 next
         clear(ADCSRB,MUX5);
@@ -810,7 +822,6 @@ ISR(ADC_vect){
     } else if (adcChannel == 4){
         R1 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
         adcChannel++;
-        m_red(OFF);
         clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
         // Read from Pin F7 next
         clear(ADCSRB,MUX5);
@@ -822,7 +833,6 @@ ISR(ADC_vect){
     } else if (adcChannel == 5){
         R2 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
         adcChannel++;
-        m_red(OFF);
         clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
         // Read from Pin D4 next
         set(ADCSRB,MUX5);
@@ -834,7 +844,6 @@ ISR(ADC_vect){
     } else if (adcChannel == 6){
         R3 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
         adcChannel++;
-        m_red(OFF);
         clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
         // Read from Pin D6 next
         set(ADCSRB,MUX5);
@@ -846,7 +855,6 @@ ISR(ADC_vect){
     } else if (adcChannel == 7){
         R4 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
         adcChannel++;
-        m_red(OFF);
         clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
         // Read from Pin F0 next
         clear(ADCSRB,MUX5);
