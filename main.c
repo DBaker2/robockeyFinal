@@ -60,7 +60,7 @@ float target = 0;  //Target angle for driving across rink
 int timer0count = 2; //0xff/100
 int leftcommand = 0; //Duty cycle and direction of left motor
 int rightcommand = 0; //Duty cycle and direction of right motor
-volatile int State = Listen;
+volatile int State = PuckFind;
 float postarget = 0;
 int sign = 0;
 int checkside = 0;
@@ -186,15 +186,16 @@ int main(void){
             case PuckFind:
                 //Transition to: Play Command, Puck Lost, Team Lost Puck, Puck Shot
                 //Transition from: Got the Puck, Team has Puck
-                
+                red_LED(ON);
                 findPuck();
                 rightcommand = (puckdirr);
                 leftcommand = (puckdirl);
                 left_motor(leftcommand);
                 right_motor(rightcommand);
-                
+                m_red(OFF);
                 if (limitswitch){
                     State = GoToGoal;}
+                break;
                 
             case GoToGoal:
                 //Transition to: Got the Puck, Run into Opponent??
