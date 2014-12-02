@@ -34,6 +34,11 @@
 //COMMUNICATIONS
 #define PLAY -95
 #define PAUSE -92
+#define COMM_TEST
+
+//OTHER CONSTANTS
+#define RED 1
+#define BLUE 2
 
 // STATES: Currently operating in only state 1 which has been repurposed to localisation and communication with the other M2. State 2 is motor driving depending on initial location and orientation. Change the right State=1 commands to State=2 commands to re-enable the qualifying code. Note: I have the states switch with receipt of a play command
 //LOCALISATION SENDING: I changed the send_data array to send the star positions for debugging, but change the packet lengths back and uncomment the send data stuff when we figure that out. Timer1 was not sending an interrupt so we commented it out, but ideally we will use it's 10hz overflow interrupt to find and send position.
@@ -82,6 +87,8 @@ int R3;
 int R4;
 int dataFlag;
 int limitswitch = 0;
+bool goalSwitchBlink = 1; // flag to only blink once to confirm goal
+int goal = 0; // goal to go to, set by switch (RED and BLUE are defined)
 
 void init(void);
 bool find_position(unsigned int star_data[]);
@@ -91,6 +98,8 @@ float dot(float v1[], float v2[]);
 //void left_spin(dutyARight);
 void left_motor(int leftcommand);
 void right_motor(int rightcommand);
+void red_LED(bool status);
+void blue_LED(bool status);
 void findPuck(void);
 
 int main(void){
@@ -103,14 +112,24 @@ int main(void){
                 rightcommand = 0;
                 left_motor(leftcommand);
                 right_motor(rightcommand);
-                if (check(PIND, PIN3)) {
-                    set(PORTB, PIN4);
-                    clear(PORTC, PIN6);
+                
+                // blink led to confirm which goal is selected (will only occur at startup)
+                if (check(PIND, PIN3) && goalSwitchBlink) {
+                    red_LED(ON);
+                    m_wait(100);
+                    red_LED(OFF);
+                    blue_LED(OFF);
                     oppgoal = 130; // may need to be switched
-                } else {
-                    set(PORTC, PIN6);
-                    clear(PORTB, PIN4);
+                    goal = RED;
+                    goalSwitchBlink = 0;
+                } else if (!check(PIND, PIN3) && goalSwitchBlink) {
+                    blue_LED(ON);
+                    m_wait(100);
+                    blue_LED(OFF);
+                    red_LED(OFF);
                     oppgoal = -130; // may need to be switched
+                    goal = BLUE;
+                    goalSwitchBlink = 0;
                 }
                 break;
                 
@@ -733,6 +752,22 @@ void right_motor(int rightcommand){
         OCR4A = -1*rightcommand*timer0count;
         clear(PORTB,PIN2); //Set B2 to go forward
         set(PORTB,PIN3);}
+}
+
+void red_LED(bool status) {
+    if (status) {
+        set(PORTB, PIN4);
+    } else {
+        clear(PORTB, PIN4);
+    }
+}
+
+void blue_LED(bool status) {
+    if (status) {
+        set(PORTC, PIN6);
+    } else {
+        clear(PORTC, PIN6);
+    }
 }
 
 ////
