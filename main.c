@@ -170,7 +170,7 @@ int main(void){
                 left_motor(leftcommand);
                 right_motor(rightcommand);
                 white_LED(OFF);
-                red_LED(ON);
+                red_LED(OFF);
                 blue_LED(OFF);
                 // blink led to confirm which goal is selected (will only occur at startup)
                 if (check(PIND, PIN3) && goalSwitchBlink) {
@@ -192,8 +192,6 @@ int main(void){
                     goal = BLUE;
                     goalSwitchBlink = 0;
                 }
-                m_wait(100);
-                //                State = PuckFind;
                 break;
                 
             case Qualify:
@@ -252,7 +250,7 @@ int main(void){
                 //Transition from: Got the Puck, Team has Puck
                 //red_LED(ON);
                 red_LED(OFF);
-                blue_LED(ON);
+                blue_LED(OFF);
                 white_LED(OFF);
                 findPuck();
                 rightcommand = (puckdirr);
@@ -925,6 +923,7 @@ ISR(INT2_vect){
                 m_wait(100);
                 blue_LED(OFF);
             }
+            break;
         case PLAY:
             State = PuckFind;
             break;
