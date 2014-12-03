@@ -250,8 +250,8 @@ int main(void){
                 //Transition to: Play Command, Puck Lost, Team Lost Puck, Puck Shot
                 //Transition from: Got the Puck, Team has Puck
                 //red_LED(ON);
-                red_LED(OFF);
-                blue_LED(OFF);
+                //red_LED(OFF);
+                //blue_LED(OFF);
                 white_LED(OFF);
                 green_LED(ON);
                 findPuck();
@@ -265,33 +265,31 @@ int main(void){
                 //Transition to: Got the Puck, Run into Opponent??
                 //Transition from: No Obstacles, Lost the puck
                 green_LED(OFF);
-                blue_LED(OFF);
-                red_LED(OFF);
+                //blue_LED(OFF);
+                //red_LED(OFF);
                 white_LED(ON);
-                if (abs(robot_position[0])<(abs(oppgoal))) {
-                    
-                    if (robot_orientation>(0.17+opptarget)) { //right turn
-                        leftcommand = 60;
-                        rightcommand = 40;
-                        left_motor(leftcommand);
-                        right_motor(rightcommand);
-                    }
-                    
-                    if (robot_orientation<(-0.17+opptarget)) { //left turn
-                        leftcommand = 40;
-                        rightcommand = 60;
-                        left_motor(leftcommand);
-                        right_motor(rightcommand);
-                    }
-                    
-                    
-                    if ((-0.17+opptarget)<robot_orientation && robot_orientation<(0.17+opptarget)) {
-                        //forward
-                        leftcommand = 40;
-                        rightcommand = 40;
-                        left_motor(leftcommand);
-                        right_motor(rightcommand);
-                    }
+                
+                if (robot_orientation>(0.3+opptarget)) { //right turn
+                    leftcommand = 60;
+                    rightcommand = 20;
+                    left_motor(leftcommand);
+                    right_motor(rightcommand);
+                }
+                
+                if (robot_orientation<(-0.3+opptarget)) { //left turn
+                    leftcommand = 20;
+                    rightcommand = 60;
+                    left_motor(leftcommand);
+                    right_motor(rightcommand);
+                }
+                
+                
+                if ((-0.3+opptarget)<robot_orientation && robot_orientation<(0.3+opptarget)) {
+                    //forward
+                    leftcommand = 30;
+                    rightcommand = 30;
+                    left_motor(leftcommand);
+                    right_motor(rightcommand);
                 }
                 
                 // if we lose the puck, go back to looking for it.
