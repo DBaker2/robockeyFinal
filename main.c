@@ -50,7 +50,7 @@ char send_data[PACKET_LENGTH_SEND] = {0,0,0,0,0,0,0,0,0,0}; // data to be sent t
 
 //Localisation variables
 unsigned int star_data[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
-unsigned int star_data2[12] = {0,0,0,0,0,0,0,0,0};
+unsigned int star_data2[9] = {0,0,0,0,0,0,0,0,0};
 float robot_position[2] = {0,0}; // vector for robot position (x and y)
 float robot_orientation= 0; // vector for robot orientation (direction fo y-axis)
 volatile bool timer1_flag = 0; // set high when timer1 overflows
@@ -115,44 +115,30 @@ int main(void){
     while(TRUE) {
         
         red_LED(OFF);
-        blue_LED(ON);
+        //blue_LED(ON);
         if (m_usb_isconnected()) {
-	        m_usb_tx_string("L1 = ");
-	        m_usb_tx_int(L1);
-	        m_usb_tx_string("  ");
-	        m_usb_tx_string(" L2= ");
-	        m_usb_tx_int(L2);
-	        m_usb_tx_string("  L3 = ");
-	        m_usb_tx_int(L3);
-	        m_usb_tx_string("  ");
-	        m_usb_tx_string(" L4 = ");
-	        m_usb_tx_int(L4);
-	        m_usb_tx_string("  ");
-	        m_usb_tx_string(" R1 = ");
-	        m_usb_tx_int(R1);
-	        m_usb_tx_string("  ");
-	        m_usb_tx_string(" R2 = ");
-	        m_usb_tx_int(R2);
-	        m_usb_tx_string("  ");
-	        m_usb_tx_string(" R3 = ");
-	        m_usb_tx_int(R3);
-	        m_usb_tx_string("  ");
-	        m_usb_tx_string(" R4 = ");
-	        m_usb_tx_int(R4);
-	        m_usb_tx_string(" last pin = ");
-	        m_usb_tx_int(lastPin);
+        	m_usb_tx_char(send_data[0]);
+        	m_usb_tx_string("  ");
+        	m_usb_tx_char(send_data[1]);
+     		m_usb_tx_string("  ");
+        	m_usb_tx_char(send_data[2]);
+        	m_usb_tx_string("  ");
+        	m_usb_tx_char(send_data[3]);
 	        m_usb_tx_string("\n");
 	    }
 
         if (send_flag = 1){
         	m_wii_read(star_data);
     		valid = find_position(star_data);
-   			if (valid) {
+   			if (1) {
         		send_data[0] = (char)robot_position[0];//TX_ADDRESS;
         		send_data[1] = (char)robot_position[1];
         		send_data[2] = (char)(robot_orientation*127/6.3);
         		// WHY DOESN"T m_RF WORK???
+        		blue_LED(OFF);
         		m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND); //Code for sending star data in footnote
+        		blue_LED(OFF);
+        		red_LED(OFF);
     		}
        		send_flag = 0;
        	}
@@ -238,13 +224,13 @@ int main(void){
             case PuckFind:
                 //Transition to: Play Command, Puck Lost, Team Lost Puck, Puck Shot
                 //Transition from: Got the Puck, Team has Puck
-                red_LED(ON);
+                //red_LED(ON);
                 findPuck();
                 rightcommand = (puckdirr);
                 leftcommand = (puckdirl);
                 left_motor(leftcommand);
                 right_motor(rightcommand);
-                m_red(OFF);
+                //m_red(OFF);
                 if (limitswitch){
                     State = GoToGoal;}
                 break;
@@ -1110,5 +1096,31 @@ ISR(ADC_vect){
 //            pindirection = 7;
 //        }
 //    }
+
+// m_usb_tx_string("L1 = ");
+// 	        m_usb_tx_int(L1);
+// 	        m_usb_tx_string("  ");
+// 	        m_usb_tx_string(" L2= ");
+// 	        m_usb_tx_int(L2);
+// 	        m_usb_tx_string("  L3 = ");
+// 	        m_usb_tx_int(L3);
+// 	        m_usb_tx_string("  ");
+// 	        m_usb_tx_string(" L4 = ");
+// 	        m_usb_tx_int(L4);
+// 	        m_usb_tx_string("  ");
+// 	        m_usb_tx_string(" R1 = ");
+// 	        m_usb_tx_int(R1);
+// 	        m_usb_tx_string("  ");
+// 	        m_usb_tx_string(" R2 = ");
+// 	        m_usb_tx_int(R2);
+// 	        m_usb_tx_string("  ");
+// 	        m_usb_tx_string(" R3 = ");
+// 	        m_usb_tx_int(R3);
+// 	        m_usb_tx_string("  ");
+// 	        m_usb_tx_string(" R4 = ");
+// 	        m_usb_tx_int(R4);
+// 	        m_usb_tx_string(" last pin = ");
+// 	        m_usb_tx_int(lastPin);
+// 	        m_usb_tx_string("\n");
 
 
