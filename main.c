@@ -40,6 +40,7 @@
 #define RED 1
 #define BLUE 2
 #define FORWARD 8
+#define POSSESSPUCK 10
 
 // STATES: Currently operating in only state 1 which has been repurposed to localisation and communication with the other M2. State 2 is motor driving depending on initial location and orientation. Change the right State=1 commands to State=2 commands to re-enable the qualifying code. Note: I have the states switch with receipt of a play command
 //LOCALISATION SENDING: I changed the send_data array to send the star positions for debugging, but change the packet lengths back and uncomment the send data stuff when we figure that out. Timer1 was not sending an interrupt so we commented it out, but ideally we will use it's 10hz overflow interrupt to find and send position.
@@ -77,7 +78,7 @@ volatile int oppgoal = -130; //x position of opponents goal - will  be determine
 float adcoffset[8] = {190,350,350,280,400,250,380,190};
 float adcmultiplier[8] = {1,1,1,1,1,1,1,1};
 volatile int adcChannel = 0;
-volatile float ADCdata[8] = {0,0,0,0,0,0,0,0};
+volatile float ADCdata[9] = {0,0,0,0,0,0,0,0,0};
 int maxADC;
 int puckdirr = 0;
 int puckdirl = 0;
@@ -89,6 +90,7 @@ int R1;
 int R2;
 int R3;
 int R4;
+int breakBeam;
 int dataFlag;
 int limitswitch = 0;
 bool goalSwitchBlink = 1; // flag to only blink once to confirm goal
@@ -116,30 +118,46 @@ int main(void){
     }
     while(TRUE) {
         
-        red_LED(OFF);
+        //red_LED(OFF);
         //blue_LED(ON);
         if (m_usb_isconnected()) {
-            m_usb_tx_int((int)(robot_position[0])); //X position, whatever that means
-            m_usb_tx_string("\t");
-            m_usb_tx_int((int)(robot_position[1])); //Y position
-            m_usb_tx_string("\t");
-            m_usb_tx_int((int)(robot_orientation*127/6.3)); //Orientation converted from radians to a fraction of 127
-            m_usb_tx_string("\n");
+        	m_usb_tx_string("L1 = ");
+	        m_usb_tx_int(L1);
+	        m_usb_tx_string("  ");
+	        m_usb_tx_string(" L2= ");
+	        m_usb_tx_int(L2);
+	        m_usb_tx_string("  L3 = ");
+	        m_usb_tx_int(L3);
+	        m_usb_tx_string("  ");
+	        m_usb_tx_string(" L4 = ");
+	        m_usb_tx_int(L4);
+	        m_usb_tx_string("  ");
+	        m_usb_tx_string(" R1 = ");
+	        m_usb_tx_int(R1);
+	        m_usb_tx_string("  ");
+	        m_usb_tx_string(" R2 = ");
+	        m_usb_tx_int(R2);
+	        m_usb_tx_string("  ");
+	        m_usb_tx_string(" R3 = ");
+	        m_usb_tx_int(R3);
+	        m_usb_tx_string("  ");
+	        m_usb_tx_string(" R4 = ");
+	        m_usb_tx_int(R4);
+			m_usb_tx_string(" BB = ");
+	        m_usb_tx_int(breakBeam);
+	        m_usb_tx_string("\n");
+
 
         }
         
         if (send_flag = 1){
             m_wii_read(star_data);
-            valid = find_position(star_data);
+            find_position(star_data);
             if (1) {
                 send_data[0] = (char)robot_position[0];//TX_ADDRESS;
                 send_data[1] = (char)robot_position[1];
                 send_data[2] = (char)(robot_orientation*127/6.3);
-                // WHY DOESN"T m_RF WORK???
-                //                blue_LED(OFF);
                 m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND); //Code for sending star data in footnote
-                //                blue_LED(OFF);
-                //                red_LED(OFF);
             }
             send_flag = 0;
        	}
@@ -175,7 +193,7 @@ int main(void){
                     goalSwitchBlink = 0;
                 }
                 m_wait(100);
-                State = GoToGoal;
+                State = PuckFind;
                 break;
                 
             case Qualify:
@@ -239,7 +257,6 @@ int main(void){
                 leftcommand = (puckdirl);
                 left_motor(leftcommand);
                 right_motor(rightcommand);
-                //m_red(OFF);
                 if (limitswitch){
                     State = GoToGoal;}
                 break;
@@ -298,7 +315,7 @@ int main(void){
                 break;
                 
             default:
-                State = Qualify;
+                State = Listen;
                 
                 break;
                 
@@ -406,6 +423,8 @@ void init(void) {
     set(DIDR0,ADC6D);
     set(DIDR0,ADC7D);
     set(DIDR2,ADC8D);
+    set(DIDR2,ADC9D);
+    set(DIDR2,ADC10D);
     
     //enable interrupt
     
@@ -704,13 +723,21 @@ void findPuck(void) {
     int maxchannel = 0;
     float maxADC = 0;
     int z = 0;
-    for (z = 0; z<8; z++) {
-        if (ADCdata[z]>maxADC) {
-            maxchannel = z;
-            maxADC = ADCdata[z];
-        }
+    if (breakBeam > 900) {
+    	blue_LED(OFF);
+        red_LED(OFF);
+ 		int z = 0;
+	    for (z = 0; z<8; z++) {
+	        if (ADCdata[z]>maxADC) {
+	            maxchannel = z;
+	            maxADC = ADCdata[z];
+	        }
+	    }
     }
-    
+    else {
+    	maxchannel = POSSESSPUCK;
+    }
+
     // if both L1 and R1 are high, drive forward!
     if (maxchannel ==  0 || maxchannel == 7) {
         if (abs(ADCdata[0] - ADCdata[7]) < 100) {
@@ -807,6 +834,10 @@ void findPuck(void) {
             //            m_port_set(m_port_ADDRESS,PORTH,PIN0);
             //pindirection = 8;
             break;
+        case POSSESSPUCK:
+        	blue_LED(ON);
+        	red_LED(ON);
+        	break;
         default:
             break;
     }
@@ -976,6 +1007,17 @@ ISR(ADC_vect){
         R4 = (ADC-adcoffset[4])*adcmultiplier[4];
         adcChannel++;
         clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
+        // Read from Pin D7 next
+        set(ADCSRB,MUX5);
+        clear(ADMUX,MUX2);
+        set(ADMUX,MUX1);
+        clear(ADMUX,MUX0);
+        set(ADCSRA,ADIF);
+    }
+    else if (adcChannel == 8){
+        breakBeam = ADC;
+        adcChannel++;
+        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
         // Read from Pin F0 next
         clear(ADCSRB,MUX5);
         clear(ADMUX,MUX2);
@@ -985,6 +1027,7 @@ ISR(ADC_vect){
         adcChannel = 0;
         dataFlag = 1;
     }
+
     if (dataFlag){
         ADCdata[0] = L1;
         ADCdata[1] = L2;
@@ -994,6 +1037,7 @@ ISR(ADC_vect){
         ADCdata[5] = R3;
         ADCdata[6] = R2;
         ADCdata[7] = R1;
+        ADCdata[8] = breakBeam;
     }
     dataFlag = 0;
     // to allow conversions again
@@ -1119,29 +1163,33 @@ ISR(ADC_vect){
 //        }
 //    }
 
-// m_usb_tx_string("L1 = ");
-// 	        m_usb_tx_int(L1);
-// 	        m_usb_tx_string("  ");
-// 	        m_usb_tx_string(" L2= ");
-// 	        m_usb_tx_int(L2);
-// 	        m_usb_tx_string("  L3 = ");
-// 	        m_usb_tx_int(L3);
-// 	        m_usb_tx_string("  ");
-// 	        m_usb_tx_string(" L4 = ");
-// 	        m_usb_tx_int(L4);
-// 	        m_usb_tx_string("  ");
-// 	        m_usb_tx_string(" R1 = ");
-// 	        m_usb_tx_int(R1);
-// 	        m_usb_tx_string("  ");
-// 	        m_usb_tx_string(" R2 = ");
-// 	        m_usb_tx_int(R2);
-// 	        m_usb_tx_string("  ");
-// 	        m_usb_tx_string(" R3 = ");
-// 	        m_usb_tx_int(R3);
-// 	        m_usb_tx_string("  ");
-// 	        m_usb_tx_string(" R4 = ");
-// 	        m_usb_tx_int(R4);
-// 	        m_usb_tx_string(" last pin = ");
-// 	        m_usb_tx_int(lastPin);
-// 	        m_usb_tx_string("\n");
+			// m_usb_tx_string("L1 = ");
+	  //       m_usb_tx_int(L1);
+	  //       m_usb_tx_string("  ");
+	  //       m_usb_tx_string(" L2= ");
+	  //       m_usb_tx_int(L2);
+	  //       m_usb_tx_string("  L3 = ");
+	  //       m_usb_tx_int(L3);
+	  //       m_usb_tx_string("  ");
+	  //       m_usb_tx_string(" L4 = ");
+	  //       m_usb_tx_int(L4);
+	  //       m_usb_tx_string("  ");
+	  //       m_usb_tx_string(" R1 = ");
+	  //       m_usb_tx_int(R1);
+	  //       m_usb_tx_string("  ");
+	  //       m_usb_tx_string(" R2 = ");
+	  //       m_usb_tx_int(R2);
+	  //       m_usb_tx_string("  ");
+	  //       m_usb_tx_string(" R3 = ");
+	  //       m_usb_tx_int(R3);
+	  //       m_usb_tx_string("  ");
+	  //       m_usb_tx_string(" R4 = ");
+	  //       m_usb_tx_int(R4);
+	  //       m_usb_tx_string("\n");
 
+            // m_usb_tx_int((int)(robot_position[0])); //X position, whatever that means
+            // m_usb_tx_string("\t");
+            // m_usb_tx_int((int)(robot_position[1])); //Y position
+            // m_usb_tx_string("\t");
+            // m_usb_tx_int((int)(robot_orientation*127/6.3)); //Orientation converted from radians to a fraction of 127
+            // m_usb_tx_string("\n");
