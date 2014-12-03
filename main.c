@@ -46,7 +46,7 @@
 //MOTOR CONTROL: The motor commands are set by valuing a signed int "leftcommand" or "rightcommand" to duty cycle in percent with positive being forward and negative being backward. I havent been able to test with the h-bridge yet obviously, so we will have to make sure that we are setting and clearing the right pins for direction. Right and left motors could be switched too, depending on how we plug in the molex.
 
 char buffer[PACKET_LENGTH_READ] = {0,0,0,0,0,0,0,0,0,0}; //data to be received
-char send_data[PACKET_LENGTH_SEND] = {0,0,0};//,0,0,0,0,0,0,0,0}; // data to be sent to game controller
+char send_data[PACKET_LENGTH_SEND] = {0,0,0,0,0,0,0,0,0,0}; // data to be sent to game controller
 
 //Localisation variables
 unsigned int star_data[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
@@ -71,7 +71,8 @@ float opptarget = 0; //angle of opponents goal
 volatile int lastPin = 0;
 volatile int oppgoal = -130; //x position of opponents goal - will  be determined by comm or switch
 //ADC variables
-float adcoffset[8] = {0,0,0,0,0,0,0,0};
+//ADC Order = L1, L2, L3, L4, R4, R3, R2 ,R1
+float adcoffset[8] = {190,350,350,280,400,250,380,190};
 float adcmultiplier[8] = {1,1,1,1,1,1,1,1};
 volatile int adcChannel = 0;
 volatile float ADCdata[8] = {0,0,0,0,0,0,0,0};
@@ -107,35 +108,41 @@ void findPuck(void);
 
 int main(void){
     init();
+    int i = 0;
+    for (i = 0; i < 8; i++){
+    	adcmultiplier[i] = 1024/(1024-adcoffset[i]);
+    }
     while(TRUE) {
         
         red_LED(OFF);
         blue_LED(ON);
-        m_usb_tx_string("L1 = ");
-        m_usb_tx_int(L1);
-        m_usb_tx_string("  ");
-        m_usb_tx_string(" L2= ");
-        m_usb_tx_int(L2);
-        m_usb_tx_string("  L3 = ");
-        m_usb_tx_int(L3);
-        m_usb_tx_string("  ");
-        m_usb_tx_string(" L4 = ");
-        m_usb_tx_int(L4);
-        m_usb_tx_string("  ");
-        m_usb_tx_string(" R1 = ");
-        m_usb_tx_int(R1);
-        m_usb_tx_string("  ");
-        m_usb_tx_string(" R2 = ");
-        m_usb_tx_int(R2);
-        m_usb_tx_string("  ");
-        m_usb_tx_string(" R3 = ");
-        m_usb_tx_int(R3);
-        m_usb_tx_string("  ");
-        m_usb_tx_string(" R4 = ");
-        m_usb_tx_int(R4);
-        m_usb_tx_string(" last pin = ");
-        m_usb_tx_int(lastPin);
-        m_usb_tx_string("\n");
+        if (m_usb_isconnected()) {
+	        m_usb_tx_string("L1 = ");
+	        m_usb_tx_int(L1);
+	        m_usb_tx_string("  ");
+	        m_usb_tx_string(" L2= ");
+	        m_usb_tx_int(L2);
+	        m_usb_tx_string("  L3 = ");
+	        m_usb_tx_int(L3);
+	        m_usb_tx_string("  ");
+	        m_usb_tx_string(" L4 = ");
+	        m_usb_tx_int(L4);
+	        m_usb_tx_string("  ");
+	        m_usb_tx_string(" R1 = ");
+	        m_usb_tx_int(R1);
+	        m_usb_tx_string("  ");
+	        m_usb_tx_string(" R2 = ");
+	        m_usb_tx_int(R2);
+	        m_usb_tx_string("  ");
+	        m_usb_tx_string(" R3 = ");
+	        m_usb_tx_int(R3);
+	        m_usb_tx_string("  ");
+	        m_usb_tx_string(" R4 = ");
+	        m_usb_tx_int(R4);
+	        m_usb_tx_string(" last pin = ");
+	        m_usb_tx_int(lastPin);
+	        m_usb_tx_string("\n");
+	    }
 
         if (send_flag = 1){
         	m_wii_read(star_data);
@@ -145,7 +152,7 @@ int main(void){
         		send_data[1] = (char)robot_position[1];
         		send_data[2] = (char)(robot_orientation*127/6.3);
         		// WHY DOESN"T m_RF WORK???
-        		//m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND); //Code for sending star data in footnote
+        		m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND); //Code for sending star data in footnote
     		}
        		send_flag = 0;
        	}
@@ -327,7 +334,7 @@ void init(void) {
     clear(DDRD, PIN3); //input for goal switch
     
     // open and initialize rf communications
-    m_rf_open(CHANNEL, RX_ADDRESS, PACKET_LENGTH_SEND);
+    m_rf_open(CHANNEL, RX_ADDRESS, PACKET_LENGTH_READ);
     
     // open and initialize m_wii communication
     m_wii_open();
@@ -925,7 +932,7 @@ ISR(ADC_vect){
         
         
     } else if (adcChannel == 4){
-        R1 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
+        R1 = (ADC-adcoffset[7])*adcmultiplier[7];
         adcChannel++;
         clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
         // Read from Pin F7 next
@@ -936,7 +943,7 @@ ISR(ADC_vect){
         set(ADCSRA,ADIF);
         
     } else if (adcChannel == 5){
-        R2 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
+        R2 = (ADC-adcoffset[6])*adcmultiplier[6];
         adcChannel++;
         clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
         // Read from Pin D4 next
@@ -947,7 +954,7 @@ ISR(ADC_vect){
         set(ADCSRA,ADIF);
         
     } else if (adcChannel == 6){
-        R3 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
+        R3 = (ADC-adcoffset[5])*adcmultiplier[5];
         adcChannel++;
         clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
         // Read from Pin D6 next
@@ -958,7 +965,7 @@ ISR(ADC_vect){
         set(ADCSRA,ADIF);
         
     } else if (adcChannel == 7){
-        R4 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
+        R4 = (ADC-adcoffset[4])*adcmultiplier[4];
         adcChannel++;
         clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
         // Read from Pin F0 next
