@@ -49,6 +49,9 @@ char buffer[PACKET_LENGTH_READ] = {0,0,0,0,0,0,0,0,0,0}; //data to be received
 char send_data[PACKET_LENGTH_SEND] = {0,0,0,0,0,0,0,0,0,0}; // data to be sent to game controller
 
 //Localisation variables
+volatile int State = Listen;
+
+
 unsigned int star_data[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
 unsigned int star_data2[9] = {0,0,0,0,0,0,0,0,0};
 float robot_position[2] = {0,0}; // vector for robot position (x and y)
@@ -61,13 +64,12 @@ float target = 0;  //Target angle for driving across rink
 int timer0count = 2; //0xff/100
 int leftcommand = 0; //Duty cycle and direction of left motor
 int rightcommand = 0; //Duty cycle and direction of right motor
-volatile int State = PuckFind;
 float postarget = 0;
 int sign = 0;
 int checkside = 0;
 int testvar = 0;
 float direction = 0;
-float opptarget = 0; //angle of opponents goal
+float opptarget = 1.57; //angle of opponents goal
 volatile int lastPin = 0;
 volatile int oppgoal = -130; //x position of opponents goal - will  be determined by comm or switch
 //ADC variables
@@ -110,39 +112,38 @@ int main(void){
     init();
     int i = 0;
     for (i = 0; i < 8; i++){
-    	adcmultiplier[i] = 1024/(1024-adcoffset[i]);
+        adcmultiplier[i] = 1024/(1024-adcoffset[i]);
     }
     while(TRUE) {
         
         red_LED(OFF);
         //blue_LED(ON);
         if (m_usb_isconnected()) {
-        	m_usb_tx_char(send_data[0]);
-        	m_usb_tx_string("  ");
-        	m_usb_tx_char(send_data[1]);
-     		m_usb_tx_string("  ");
-        	m_usb_tx_char(send_data[2]);
-        	m_usb_tx_string("  ");
-        	m_usb_tx_char(send_data[3]);
-	        m_usb_tx_string("\n");
-	    }
+            m_usb_tx_int((int)(robot_position[0])); //X position, whatever that means
+            m_usb_tx_string("\t");
+            m_usb_tx_int((int)(robot_position[1])); //Y position
+            m_usb_tx_string("\t");
+            m_usb_tx_int((int)(robot_orientation*127/6.3)); //Orientation converted from radians to a fraction of 127
+            m_usb_tx_string("\n");
 
+        }
+        
         if (send_flag = 1){
-        	m_wii_read(star_data);
-    		valid = find_position(star_data);
-   			if (1) {
-        		send_data[0] = (char)robot_position[0];//TX_ADDRESS;
-        		send_data[1] = (char)robot_position[1];
-        		send_data[2] = (char)(robot_orientation*127/6.3);
-        		// WHY DOESN"T m_RF WORK???
-        		blue_LED(OFF);
-        		m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND); //Code for sending star data in footnote
-        		blue_LED(OFF);
-        		red_LED(OFF);
-    		}
-       		send_flag = 0;
+            m_wii_read(star_data);
+            valid = find_position(star_data);
+            if (1) {
+                send_data[0] = (char)robot_position[0];//TX_ADDRESS;
+                send_data[1] = (char)robot_position[1];
+                send_data[2] = (char)(robot_orientation*127/6.3);
+                // WHY DOESN"T m_RF WORK???
+                //                blue_LED(OFF);
+                m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND); //Code for sending star data in footnote
+                //                blue_LED(OFF);
+                //                red_LED(OFF);
+            }
+            send_flag = 0;
        	}
-
+        
         
         switch (State) { //** Necessary states for 11/24: 1 = Wait |  2 = drive to opposite side of rink
             case Listen: //Wait for PLAY command
@@ -151,6 +152,8 @@ int main(void){
                 left_motor(leftcommand);
                 right_motor(rightcommand);
                 
+                red_LED(OFF);
+                blue_LED(OFF);
                 // blink led to confirm which goal is selected (will only occur at startup)
                 if (check(PIND, PIN3) && goalSwitchBlink) {
                     red_LED(ON);
@@ -158,6 +161,7 @@ int main(void){
                     red_LED(OFF);
                     blue_LED(OFF);
                     oppgoal = 130; // may need to be switched
+                    opptarget = 3*PI/2;
                     goal = RED;
                     goalSwitchBlink = 0;
                 } else if (!check(PIND, PIN3) && goalSwitchBlink) {
@@ -166,18 +170,22 @@ int main(void){
                     blue_LED(OFF);
                     red_LED(OFF);
                     oppgoal = -130; // may need to be switched
+                    opptarget = PI/2;
                     goal = BLUE;
                     goalSwitchBlink = 0;
                 }
+                m_wait(100);
+                State = GoToGoal;
                 break;
                 
             case Qualify:
+                red_LED(OFF);
+                blue_LED(ON);
                 
-                m_wait(150);
                 if (checkside == 0) {
                     checkside = 1;
                     if (robot_position[0] < 0){
-                        target = (3*PI)/2;
+                        target = 3*PI/2;
                         postarget = 100;
                     }
                     else {
@@ -216,7 +224,7 @@ int main(void){
                     
                     
                 } else {
-                    State=1;
+                    State=Qualify;
                 }
                 break;
                 
@@ -224,7 +232,8 @@ int main(void){
             case PuckFind:
                 //Transition to: Play Command, Puck Lost, Team Lost Puck, Puck Shot
                 //Transition from: Got the Puck, Team has Puck
-                //red_LED(ON);
+                red_LED(ON);
+                blue_LED(OFF);
                 findPuck();
                 rightcommand = (puckdirr);
                 leftcommand = (puckdirl);
@@ -249,8 +258,6 @@ int main(void){
                         right_motor(rightcommand);
                     }
                     
-                    
-                    
                     if (robot_orientation<(-0.17+opptarget)) { //left spin
                         leftcommand = -20;
                         rightcommand = 20;
@@ -261,42 +268,51 @@ int main(void){
                     
                     if ((-0.17+opptarget)<robot_orientation && robot_orientation<(0.17+opptarget)) {
                         //forward
-                        leftcommand = 80;
-                        rightcommand = 80;
+                        leftcommand = 20;
+                        rightcommand = 20;
                         left_motor(leftcommand);
                         right_motor(rightcommand);
                     }
                 }
-
+                break;
+                
+                //                else {State = Listen;}
+                
             case Follow:
                 //Transition to: Team has Puck
                 //Transition from: Team lost Puck
+                break;
                 
-    
+                
             case ShootPuck:
                 //Transition to: No Obstacles
                 //Transition from: Default to Puck seek
+                
+                break;
                 
             case Celebration:
                 //Transition to: Goal interrupt
                 //Transition from: Go to wait
                 
+                
+                break;
+                
             default:
-                State = 1;
+                State = Qualify;
                 
                 break;
                 
         }
         
-            // send adc data
+        // send adc data
         
-            
-            // dataFlag = 0;
-
-
+        
+        // dataFlag = 0;
+        
+        
     }
     
-    }
+}
 
 // Background interrupts: Timer 0: 10hz interrupt finds location and puck direction | RF interrupt for Play/Pause/Listen, Enemy Position, and Teammate Commands
 
@@ -371,7 +387,7 @@ void init(void) {
     set(TCCR4A, PWM4B); // clear at OCR4B, set at 0xFF
     set(TCCR4A, COM4B1); // ^
     clear(TCCR4A, COM4B0); // ^
-
+    
     //ADC init
     // set the reference voltage to V_cc (5V)
     clear(ADMUX,REFS1);
@@ -422,7 +438,7 @@ void init(void) {
     m_port_set(m_port_ADDRESS,DDRH,0);
     
     
-
+    
     
 }
 
@@ -639,6 +655,12 @@ bool find_position(unsigned int star_data[]) {
             // calculate rotation from robot frame to star frame
             float theta1 = (-1)*atan2((Ax1-Cx1),(Ay1-Cy1));		// these arguments should be doubles, check here if there is a problem
             
+            if (theta < 0) {
+                robot_orientation = (2*PI) + theta;
+            } else {
+                robot_orientation = theta;
+            }
+            
             // calculate robot position using output from homogeneous transform matric
             float x1 = -1*((-1)*cos(theta1)*(ox1-512)-sin(theta1)*(oy1-384)); // added an extra inversion
             float y1 = sin(theta1)*(ox1-512)-cos(theta1)*(oy1-384);
@@ -688,12 +710,12 @@ void findPuck(void) {
             maxADC = ADCdata[z];
         }
     }
-
+    
     // if both L1 and R1 are high, drive forward!
     if (maxchannel ==  0 || maxchannel == 7) {
-    	if (abs(ADCdata[0] - ADCdata[7]) < 100) {
-    		maxchannel = FORWARD;
-    	}
+        if (abs(ADCdata[0] - ADCdata[7]) < 100) {
+            maxchannel = FORWARD;
+        }
     }
     
     if (maxADC<100)
@@ -703,86 +725,86 @@ void findPuck(void) {
         case 0:
             puckdirr= 20;
             puckdirl = -20;
-//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-//            m_port_set(m_port_ADDRESS,PORTG,PIN0);
-//            m_port_clear(m_port_ADDRESS,PORTH,PIN0); //clear the h0 port corresponding to no adc
+            //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+            //            m_port_set(m_port_ADDRESS,PORTG,PIN0);
+            //            m_port_clear(m_port_ADDRESS,PORTH,PIN0); //clear the h0 port corresponding to no adc
             lastPin = PIN0;
             //pindirection = 0;
             break;
         case 1:
             puckdirr = 20;
             puckdirl= -20;
-//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-//            m_port_set(m_port_ADDRESS,PORTG,PIN1);
-//            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
+            //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+            //            m_port_set(m_port_ADDRESS,PORTG,PIN1);
+            //            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
             lastPin = PIN1;
             //pindirection = 1;
             break;
         case 2:
             puckdirr = 20;
             puckdirl= -20;
-//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-//            m_port_set(m_port_ADDRESS,PORTG,PIN2);
-//            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
+            //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+            //            m_port_set(m_port_ADDRESS,PORTG,PIN2);
+            //            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
             lastPin = PIN2;
             //pindirection = 2;
             break;
         case 3:
             puckdirr = 20;
             puckdirl= -20;
-//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-//            m_port_set(m_port_ADDRESS,PORTG,PIN3);
-//            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
+            //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+            //            m_port_set(m_port_ADDRESS,PORTG,PIN3);
+            //            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
             lastPin = PIN3;
             //pindirection = 3;
             break;
         case 4:
             puckdirr = -20;
             puckdirl= 20;
-//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-//            m_port_set(m_port_ADDRESS,PORTG,PIN4);
-//            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
+            //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+            //            m_port_set(m_port_ADDRESS,PORTG,PIN4);
+            //            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
             lastPin = PIN4;
             //pindirection = 4;
             break;
         case 5:
             puckdirr = -20;
             puckdirl= 20;
-//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-//            m_port_set(m_port_ADDRESS,PORTG,PIN5);
-//            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
+            //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+            //            m_port_set(m_port_ADDRESS,PORTG,PIN5);
+            //            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
             lastPin = PIN5;
             //pindirection = 5;
             break;
         case 6:
             puckdirr = -20;
             puckdirl= 20;
-//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-//            m_port_set(m_port_ADDRESS,PORTG,PIN6);
-//            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
+            //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+            //            m_port_set(m_port_ADDRESS,PORTG,PIN6);
+            //            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
             lastPin = PIN6;
             //pindirection = 6;
             break;
         case 7:
             puckdirr = -20;
             puckdirl= 20;
-//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-//            m_port_set(m_port_ADDRESS,PORTG,PIN7);
-//            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
+            //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+            //            m_port_set(m_port_ADDRESS,PORTG,PIN7);
+            //            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
             lastPin = PIN7;
             //pindirection = 7;
             break;
-
+            
         case FORWARD:
-        	puckdirr = 50;
-        	puckdirl = 50;
-        	break;
-
+            puckdirr = 50;
+            puckdirl = 50;
+            break;
+            
         case 9:
             puckdirr = 20;
             puckdirl= -20;
-//            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
-//            m_port_set(m_port_ADDRESS,PORTH,PIN0);
+            //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
+            //            m_port_set(m_port_ADDRESS,PORTH,PIN0);
             //pindirection = 8;
             break;
         default:
@@ -1122,5 +1144,4 @@ ISR(ADC_vect){
 // 	        m_usb_tx_string(" last pin = ");
 // 	        m_usb_tx_int(lastPin);
 // 	        m_usb_tx_string("\n");
-
 
