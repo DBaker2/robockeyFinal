@@ -108,6 +108,8 @@ void left_motor(int leftcommand);
 void right_motor(int rightcommand);
 void red_LED(bool status);
 void blue_LED(bool status);
+void white_LED(bool status);
+void green_LED(bool status);
 void findPuck(void);
 
 int main(void){
@@ -116,10 +118,10 @@ int main(void){
     for (i = 0; i < 8; i++){
         adcmultiplier[i] = 1024/(1024-adcoffset[i]);
     }
+    green_LED(ON);
+    white_LED(ON);
     while(TRUE) {
-        
-        //red_LED(OFF);
-        //blue_LED(ON);
+
         if (m_usb_isconnected()) {
         	m_usb_tx_string("L1 = ");
 	        m_usb_tx_int(L1);
@@ -146,8 +148,6 @@ int main(void){
 			m_usb_tx_string(" BB = ");
 	        m_usb_tx_int(breakBeam);
 	        m_usb_tx_string("\n");
-
-
         }
         
         if (send_flag = 1){
@@ -250,7 +250,7 @@ int main(void){
             case PuckFind:
                 //Transition to: Play Command, Puck Lost, Team Lost Puck, Puck Shot
                 //Transition from: Got the Puck, Team has Puck
-                red_LED(ON);
+                //red_LED(ON);
                 blue_LED(OFF);
                 findPuck();
                 rightcommand = (puckdirr);
@@ -265,19 +265,20 @@ int main(void){
                 //Transition to: Got the Puck, Run into Opponent??
                 //Transition from: No Obstacles, Lost the puck
                 
-                
+                blue_LED(ON);
+        		red_LED(ON);
                 if (abs(robot_position[0])<(abs(oppgoal))) {
                     
-                    if (robot_orientation>(0.17+opptarget)) { //right spin
-                        leftcommand = 20;
-                        rightcommand = -20;
+                    if (robot_orientation>(0.17+opptarget)) { //right turn
+                        leftcommand = 60;
+                        rightcommand = 40;
                         left_motor(leftcommand);
                         right_motor(rightcommand);
                     }
                     
-                    if (robot_orientation<(-0.17+opptarget)) { //left spin
-                        leftcommand = -20;
-                        rightcommand = 20;
+                    if (robot_orientation<(-0.17+opptarget)) { //left turn
+                        leftcommand = 40;
+                        rightcommand = 60;
                         left_motor(leftcommand);
                         right_motor(rightcommand);
                     }
@@ -285,11 +286,16 @@ int main(void){
                     
                     if ((-0.17+opptarget)<robot_orientation && robot_orientation<(0.17+opptarget)) {
                         //forward
-                        leftcommand = 20;
-                        rightcommand = 20;
+                        leftcommand = 40;
+                        rightcommand = 40;
                         left_motor(leftcommand);
                         right_motor(rightcommand);
                     }
+                }
+
+                // if we lose the puck, go back to looking for it.
+                if (breakBeam > 900) {
+                	State = PuckFind;
                 }
                 break;
                 
@@ -723,18 +729,16 @@ void findPuck(void) {
     int maxchannel = 0;
     float maxADC = 0;
     int z = 0;
-    if (breakBeam > 900) {
-    	blue_LED(OFF);
-        red_LED(OFF);
- 		int z = 0;
-	    for (z = 0; z<8; z++) {
-	        if (ADCdata[z]>maxADC) {
-	            maxchannel = z;
-	            maxADC = ADCdata[z];
-	        }
+    blue_LED(OFF);
+    red_LED(OFF);
+    for (z = 0; z<8; z++) {
+	    if (ADCdata[z]>maxADC) {
+	        maxchannel = z;
+	        maxADC = ADCdata[z];
 	    }
-    }
-    else {
+	}
+    if (breakBeam < 900) {
+    	State = GoToGoal;
     	maxchannel = POSSESSPUCK;
     }
 
@@ -835,8 +839,7 @@ void findPuck(void) {
             //pindirection = 8;
             break;
         case POSSESSPUCK:
-        	blue_LED(ON);
-        	red_LED(ON);
+        	//  if you've got the puck, get out of this function and go score a fucking goal!!!
         	break;
         default:
             break;
@@ -881,6 +884,23 @@ void blue_LED(bool status) {
         clear(PORTC, PIN6);
     }
 }
+
+void white_LED(bool status) {
+    if (status) {
+		m_port_set(m_port_ADDRESS,PORTG,PIN0);
+    } else {
+        m_port_clear(m_port_ADDRESS,PORTG,PIN0);
+    }
+}
+
+void green_LED(bool status) {
+    if (status) {
+		m_port_set(m_port_ADDRESS,PORTG,PIN2);
+    } else {
+        m_port_clear(m_port_ADDRESS,PORTG,PIN2);
+    }
+}
+
 
 ////
 ISR(TIMER1_OVF_vect) {
