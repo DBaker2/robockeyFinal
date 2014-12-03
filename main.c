@@ -118,36 +118,36 @@ int main(void){
     for (i = 0; i < 8; i++){
         adcmultiplier[i] = 1024/(1024-adcoffset[i]);
     }
-    green_LED(ON);
-    white_LED(ON);
+    //    green_LED(OFF);
+    //    white_LED(OFF);
     while(TRUE) {
-
+        
         if (m_usb_isconnected()) {
-        	m_usb_tx_string("L1 = ");
-	        m_usb_tx_int(L1);
-	        m_usb_tx_string("  ");
-	        m_usb_tx_string(" L2= ");
-	        m_usb_tx_int(L2);
-	        m_usb_tx_string("  L3 = ");
-	        m_usb_tx_int(L3);
-	        m_usb_tx_string("  ");
-	        m_usb_tx_string(" L4 = ");
-	        m_usb_tx_int(L4);
-	        m_usb_tx_string("  ");
-	        m_usb_tx_string(" R1 = ");
-	        m_usb_tx_int(R1);
-	        m_usb_tx_string("  ");
-	        m_usb_tx_string(" R2 = ");
-	        m_usb_tx_int(R2);
-	        m_usb_tx_string("  ");
-	        m_usb_tx_string(" R3 = ");
-	        m_usb_tx_int(R3);
-	        m_usb_tx_string("  ");
-	        m_usb_tx_string(" R4 = ");
-	        m_usb_tx_int(R4);
-			m_usb_tx_string(" BB = ");
-	        m_usb_tx_int(breakBeam);
-	        m_usb_tx_string("\n");
+            m_usb_tx_string("L1 = ");
+            m_usb_tx_int(L1);
+            m_usb_tx_string("  ");
+            m_usb_tx_string(" L2= ");
+            m_usb_tx_int(L2);
+            m_usb_tx_string("  L3 = ");
+            m_usb_tx_int(L3);
+            m_usb_tx_string("  ");
+            m_usb_tx_string(" L4 = ");
+            m_usb_tx_int(L4);
+            m_usb_tx_string("  ");
+            m_usb_tx_string(" R1 = ");
+            m_usb_tx_int(R1);
+            m_usb_tx_string("  ");
+            m_usb_tx_string(" R2 = ");
+            m_usb_tx_int(R2);
+            m_usb_tx_string("  ");
+            m_usb_tx_string(" R3 = ");
+            m_usb_tx_int(R3);
+            m_usb_tx_string("  ");
+            m_usb_tx_string(" R4 = ");
+            m_usb_tx_int(R4);
+            m_usb_tx_string(" BB = ");
+            m_usb_tx_int(breakBeam);
+            m_usb_tx_string("\n");
         }
         
         if (send_flag = 1){
@@ -169,8 +169,8 @@ int main(void){
                 rightcommand = 0;
                 left_motor(leftcommand);
                 right_motor(rightcommand);
-                
-                red_LED(OFF);
+                white_LED(OFF);
+                red_LED(ON);
                 blue_LED(OFF);
                 // blink led to confirm which goal is selected (will only occur at startup)
                 if (check(PIND, PIN3) && goalSwitchBlink) {
@@ -193,13 +193,13 @@ int main(void){
                     goalSwitchBlink = 0;
                 }
                 m_wait(100);
-                State = PuckFind;
+                //                State = PuckFind;
                 break;
                 
             case Qualify:
                 red_LED(OFF);
                 blue_LED(ON);
-                
+                white_LED(OFF);
                 if (checkside == 0) {
                     checkside = 1;
                     if (robot_position[0] < 0){
@@ -251,22 +251,22 @@ int main(void){
                 //Transition to: Play Command, Puck Lost, Team Lost Puck, Puck Shot
                 //Transition from: Got the Puck, Team has Puck
                 //red_LED(ON);
-                blue_LED(OFF);
+                red_LED(OFF);
+                blue_LED(ON);
+                white_LED(OFF);
                 findPuck();
                 rightcommand = (puckdirr);
                 leftcommand = (puckdirl);
                 left_motor(leftcommand);
                 right_motor(rightcommand);
-                if (limitswitch){
-                    State = GoToGoal;}
-                break;
                 
             case GoToGoal:
                 //Transition to: Got the Puck, Run into Opponent??
                 //Transition from: No Obstacles, Lost the puck
                 
-                blue_LED(ON);
-        		red_LED(ON);
+                blue_LED(OFF);
+                red_LED(OFF);
+                white_LED(ON);
                 if (abs(robot_position[0])<(abs(oppgoal))) {
                     
                     if (robot_orientation>(0.17+opptarget)) { //right turn
@@ -292,10 +292,10 @@ int main(void){
                         right_motor(rightcommand);
                     }
                 }
-
+                
                 // if we lose the puck, go back to looking for it.
                 if (breakBeam > 900) {
-                	State = PuckFind;
+                    State = PuckFind;
                 }
                 break;
                 
@@ -729,19 +729,18 @@ void findPuck(void) {
     int maxchannel = 0;
     float maxADC = 0;
     int z = 0;
-    blue_LED(OFF);
-    red_LED(OFF);
     for (z = 0; z<8; z++) {
-	    if (ADCdata[z]>maxADC) {
-	        maxchannel = z;
-	        maxADC = ADCdata[z];
-	    }
-	}
-    if (breakBeam < 900) {
-    	State = GoToGoal;
-    	maxchannel = POSSESSPUCK;
+        if (ADCdata[z]>maxADC) {
+            maxchannel = z;
+            maxADC = ADCdata[z];
+        }
     }
-
+    if (breakBeam < 900) {
+        State = GoToGoal;
+        maxchannel = POSSESSPUCK;
+        green_LED(ON);
+    }
+    
     // if both L1 and R1 are high, drive forward!
     if (maxchannel ==  0 || maxchannel == 7) {
         if (abs(ADCdata[0] - ADCdata[7]) < 100) {
@@ -790,8 +789,8 @@ void findPuck(void) {
             //pindirection = 3;
             break;
         case 4:
-            puckdirr = -20;
-            puckdirl= 20;
+            puckdirr = 20;
+            puckdirl= -20;
             //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
             //            m_port_set(m_port_ADDRESS,PORTG,PIN4);
             //            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
@@ -827,8 +826,8 @@ void findPuck(void) {
             break;
             
         case FORWARD:
-            puckdirr = 50;
-            puckdirl = 50;
+            puckdirr = 20;
+            puckdirl = 20;
             break;
             
         case 9:
@@ -839,8 +838,8 @@ void findPuck(void) {
             //pindirection = 8;
             break;
         case POSSESSPUCK:
-        	//  if you've got the puck, get out of this function and go score a fucking goal!!!
-        	break;
+            //  if you've got the puck, get out of this function and go score a fucking goal!!!
+            break;
         default:
             break;
     }
@@ -887,7 +886,7 @@ void blue_LED(bool status) {
 
 void white_LED(bool status) {
     if (status) {
-		m_port_set(m_port_ADDRESS,PORTG,PIN0);
+        m_port_set(m_port_ADDRESS,PORTG,PIN0);
     } else {
         m_port_clear(m_port_ADDRESS,PORTG,PIN0);
     }
@@ -895,7 +894,7 @@ void white_LED(bool status) {
 
 void green_LED(bool status) {
     if (status) {
-		m_port_set(m_port_ADDRESS,PORTG,PIN2);
+        m_port_set(m_port_ADDRESS,PORTG,PIN2);
     } else {
         m_port_clear(m_port_ADDRESS,PORTG,PIN2);
     }
@@ -1047,7 +1046,7 @@ ISR(ADC_vect){
         adcChannel = 0;
         dataFlag = 1;
     }
-
+    
     if (dataFlag){
         ADCdata[0] = L1;
         ADCdata[1] = L2;
@@ -1183,33 +1182,33 @@ ISR(ADC_vect){
 //        }
 //    }
 
-			// m_usb_tx_string("L1 = ");
-	  //       m_usb_tx_int(L1);
-	  //       m_usb_tx_string("  ");
-	  //       m_usb_tx_string(" L2= ");
-	  //       m_usb_tx_int(L2);
-	  //       m_usb_tx_string("  L3 = ");
-	  //       m_usb_tx_int(L3);
-	  //       m_usb_tx_string("  ");
-	  //       m_usb_tx_string(" L4 = ");
-	  //       m_usb_tx_int(L4);
-	  //       m_usb_tx_string("  ");
-	  //       m_usb_tx_string(" R1 = ");
-	  //       m_usb_tx_int(R1);
-	  //       m_usb_tx_string("  ");
-	  //       m_usb_tx_string(" R2 = ");
-	  //       m_usb_tx_int(R2);
-	  //       m_usb_tx_string("  ");
-	  //       m_usb_tx_string(" R3 = ");
-	  //       m_usb_tx_int(R3);
-	  //       m_usb_tx_string("  ");
-	  //       m_usb_tx_string(" R4 = ");
-	  //       m_usb_tx_int(R4);
-	  //       m_usb_tx_string("\n");
+// m_usb_tx_string("L1 = ");
+//       m_usb_tx_int(L1);
+//       m_usb_tx_string("  ");
+//       m_usb_tx_string(" L2= ");
+//       m_usb_tx_int(L2);
+//       m_usb_tx_string("  L3 = ");
+//       m_usb_tx_int(L3);
+//       m_usb_tx_string("  ");
+//       m_usb_tx_string(" L4 = ");
+//       m_usb_tx_int(L4);
+//       m_usb_tx_string("  ");
+//       m_usb_tx_string(" R1 = ");
+//       m_usb_tx_int(R1);
+//       m_usb_tx_string("  ");
+//       m_usb_tx_string(" R2 = ");
+//       m_usb_tx_int(R2);
+//       m_usb_tx_string("  ");
+//       m_usb_tx_string(" R3 = ");
+//       m_usb_tx_int(R3);
+//       m_usb_tx_string("  ");
+//       m_usb_tx_string(" R4 = ");
+//       m_usb_tx_int(R4);
+//       m_usb_tx_string("\n");
 
-            // m_usb_tx_int((int)(robot_position[0])); //X position, whatever that means
-            // m_usb_tx_string("\t");
-            // m_usb_tx_int((int)(robot_position[1])); //Y position
-            // m_usb_tx_string("\t");
-            // m_usb_tx_int((int)(robot_orientation*127/6.3)); //Orientation converted from radians to a fraction of 127
-            // m_usb_tx_string("\n");
+// m_usb_tx_int((int)(robot_position[0])); //X position, whatever that means
+// m_usb_tx_string("\t");
+// m_usb_tx_int((int)(robot_position[1])); //Y position
+// m_usb_tx_string("\t");
+// m_usb_tx_int((int)(robot_orientation*127/6.3)); //Orientation converted from radians to a fraction of 127
+// m_usb_tx_string("\n");
