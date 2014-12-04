@@ -129,7 +129,10 @@ int main(void){
              m_usb_tx_int((int)(robot_position[1])); //Y position
              m_usb_tx_string("\t");
              m_usb_tx_int((int)(robot_orientation*127/6.3)); //Orientation converted from radians to a fraction of 127
+             m_usb_tx_string("\t");
+             m_usb_tx_int((int)State); //Orientation converted from
              m_usb_tx_string("\n");
+            
         }
         
         if (send_flag == 1){
@@ -236,7 +239,7 @@ int main(void){
                 //red_LED(OFF);
                 //blue_LED(OFF);
                 white_LED(OFF);
-                green_LED(ON);
+                green_LED(OFF);
                 findPuck();
                 rightcommand = (puckdirr);
                 leftcommand = (puckdirl);
@@ -249,12 +252,14 @@ int main(void){
                 //Transition from: No Obstacles, Lost the puck
                 //green_LED(OFF);
                 //blue_LED(OFF);
-                green_LED(OFF);
+                
                 white_LED(ON);
-                if (robot_position[1]<20 && robot_position [1]>-20)
+                if (robot_position[1]<35 && robot_position[1]>-35)
                 {
+                    red_LED(OFF);
+                    blue_LED(OFF);
                     if (robot_orientation_filtered>(0.3+opptarget)) { //right turn
-                        leftcommand = 60;
+                        leftcommand = 40;
                         rightcommand = 20;
                         left_motor(leftcommand);
                         right_motor(rightcommand);
@@ -262,7 +267,7 @@ int main(void){
                     
                     if (robot_orientation_filtered<(-0.3+opptarget)) { //left turn
                         leftcommand = 20;
-                        rightcommand = 60;
+                        rightcommand = 40;
                         left_motor(leftcommand);
                         right_motor(rightcommand);
                     }
@@ -276,8 +281,9 @@ int main(void){
                         right_motor(rightcommand);
                     }
                 }
-                if (robot_position[1]>20) {
-                    //green_LED(ON);
+                if (robot_position[1]>35) {
+                    red_LED(OFF);
+                    blue_LED(ON);
                     //white_LED(OFF);
                     if (robot_orientation_filtered>(0.3+opptarget)) { //right turn
                         leftcommand = 20;
@@ -291,17 +297,24 @@ int main(void){
                         left_motor(leftcommand);
                         right_motor(rightcommand);}
                     
-                    if ((-0.3+opptarget)<robot_orientation_filtered && robot_orientation_filtered<(0.3+opptarget)) {
+                    if ((-0.3+opptarget)<robot_orientation_filtered && robot_orientation_filtered<(opptarget)) {
                         //forward
                         leftcommand = 30;
                         rightcommand = 40;
                         left_motor(leftcommand);
                         right_motor(rightcommand);}
-   
+                    if (robot_orientation_filtered<(0.3+opptarget) && robot_orientation_filtered>(opptarget)) {
+                        leftcommand = 40;
+                        rightcommand = 30;
+                        left_motor(leftcommand);
+                        right_motor(rightcommand);
+                    }
+                    
                 }
-                if (robot_position[1]<-20) {
-                    //white_LED(ON);
-                    //green_LED(OFF);
+                if (robot_position[1]<-35) {
+                    //                    white_LED(ON);
+                    red_LED(OFF);
+                    blue_LED(ON);
                     if (robot_orientation_filtered>(0.3+opptarget)) { //right turn
                         leftcommand = 20;
                         rightcommand = -20;
@@ -314,15 +327,21 @@ int main(void){
                         left_motor(leftcommand);
                         right_motor(rightcommand);}
                     
-                    if ((-0.3+opptarget)<robot_orientation_filtered && robot_orientation_filtered<(0.3+opptarget)) {
+                    if ((-0.3+opptarget)<robot_orientation_filtered && robot_orientation_filtered<(opptarget)) {
                         //forward
                         leftcommand = 40;
                         rightcommand = 30;
                         left_motor(leftcommand);
                         right_motor(rightcommand);}
+                    if (robot_orientation_filtered<(0.3+opptarget) && robot_orientation_filtered>(opptarget)) {
+                        leftcommand = 30;
+                        rightcommand = 40;
+                        left_motor(leftcommand);
+                        right_motor(rightcommand);
+                    }
                     
                 }
-
+                
                 // if we lose the puck, go back to looking for it.
                 if (breakBeam > 900) {
                     State = PuckFind;
@@ -971,8 +990,6 @@ ISR(INT2_vect){
         default:
             break;
     }
-    m_usb_tx_int(State);
-    m_usb_tx_string("\n");
     
     //Will determine values of oppgoal and opptarget
 }
