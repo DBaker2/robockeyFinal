@@ -132,7 +132,7 @@ int main(void){
              m_usb_tx_string("\n");
         }
         
-        if (send_flag = 1){
+        if (send_flag == 1){
             m_wii_read(star_data);
             find_position(star_data);
             robot_orientation_filtered = .95*robot_orientation_filtered+.05*robot_orientation;
@@ -154,7 +154,7 @@ int main(void){
                 right_motor(rightcommand);
                 white_LED(OFF);
                 red_LED(OFF);
-                blue_LED(ON);
+                blue_LED(OFF);
                 green_LED(OFF);
                 // blink led to confirm which goal is selected (will only occur at startup)
                 if (check(PIND, PIN3) && goalSwitchBlink) {
@@ -235,8 +235,8 @@ int main(void){
                 //red_LED(ON);
                 //red_LED(OFF);
                 //blue_LED(OFF);
-//                white_LED(OFF);
-//                green_LED(ON);
+                white_LED(OFF);
+                green_LED(ON);
                 findPuck();
                 rightcommand = (puckdirr);
                 leftcommand = (puckdirl);
@@ -247,10 +247,10 @@ int main(void){
             case GoToGoal:
                 //Transition to: Got the Puck, Run into Opponent??
                 //Transition from: No Obstacles, Lost the puck
-                green_LED(OFF);
+                //green_LED(OFF);
                 //blue_LED(OFF);
-                //red_LED(OFF);
-                red_LED(ON);
+                green_LED(OFF);
+                white_LED(ON);
                 if (robot_position[1]<20 && robot_position [1]>-20)
                 {
                     if (robot_orientation_filtered>(0.3+opptarget)) { //right turn
@@ -277,8 +277,8 @@ int main(void){
                     }
                 }
                 if (robot_position[1]>20) {
-                    green_LED(ON);
-                    white_LED(OFF);
+                    //green_LED(ON);
+                    //white_LED(OFF);
                     if (robot_orientation_filtered>(0.3+opptarget)) { //right turn
                         leftcommand = 20;
                         rightcommand = -20;
@@ -300,8 +300,8 @@ int main(void){
    
                 }
                 if (robot_position[1]<-20) {
-                    white_LED(ON);
-                    green_LED(OFF);
+                    //white_LED(ON);
+                    //green_LED(OFF);
                     if (robot_orientation_filtered>(0.3+opptarget)) { //right turn
                         leftcommand = 20;
                         rightcommand = -20;
