@@ -177,8 +177,8 @@ int main(void){
             }
             
             robot_orientation_fil = .95*robot_orientation_fil+.05*robot_orientation;
-                x_robot_position_fil = robot_position[0]*OppGoalSign; //Our goal is always the positive side
-                y_robot_position_fil = robot_position[1]*OppGoalSign; //The left of the rink from our perspective is always negative
+            x_robot_position_fil = robot_position[0]*OppGoalSign; //Our goal is always the positive side
+            y_robot_position_fil = robot_position[1]*OppGoalSign; //The left of the rink from our perspective is always negative
             if (1) {
                 send_data[0] = (char)robot_position[0];//TX_ADDRESS;
                 send_data[1] = (char)robot_position[1];
@@ -455,7 +455,7 @@ int main(void){
         
         // dataFlag = 0;
         
-        }
+    }
     
     
 }
@@ -864,7 +864,7 @@ void findPuck(void) {
     if (breakBeam < 900) {
         State = GoToGoal;
         maxchannel = POSSESSPUCK;
-//        green_LED(ON);
+        //        green_LED(ON);
     }
     
     // if both L1 and R1 are high, drive forward!
@@ -1196,7 +1196,7 @@ ISR(ADC_vect){
     set(ADCSRA,ADEN);
     set(ADCSRA,ADSC);
 }
-    
+
 //// Useful Blocks of code
 //
 //                send_data[0] = (char)(star_data[0]/10);//RX_ADDRESS;
@@ -1376,15 +1376,15 @@ ISR(ADC_vect){
 //        left_motor(leftcommand);
 //        right_motor(rightcommand);
 //    }
-//    
+//
 //    if (robot_orientation_filtered<(-0.3+opptarget)) { //left turn
 //        leftcommand = 20;
 //        rightcommand = 40;
 //        left_motor(leftcommand);
 //        right_motor(rightcommand);
 //    }
-//    
-//    
+//
+//
 //    if ((-0.3+opptarget)<robot_orientation_filtered && robot_orientation_filtered<(0.3+opptarget)) {
 //        //forward
 //        leftcommand = 30;
@@ -1402,13 +1402,13 @@ ISR(ADC_vect){
 //        rightcommand = -20;
 //        left_motor(leftcommand);
 //        right_motor(rightcommand);}
-//    
+//
 //    if (robot_orientation_filtered<(-0.3+opptarget)) { //left turn
 //        leftcommand = -20;
 //        rightcommand = 20;
 //        left_motor(leftcommand);
 //        right_motor(rightcommand);}
-//    
+//
 //    if ((-0.3+opptarget)<robot_orientation_filtered && robot_orientation_filtered<(opptarget)) {
 //        //forward
 //        leftcommand = 30;
@@ -1421,7 +1421,7 @@ ISR(ADC_vect){
 //        left_motor(leftcommand);
 //        right_motor(rightcommand);
 //    }
-//    
+//
 //}
 //if (robot_position[1]<-35) {
 //    //                    white_LED(ON);
@@ -1432,13 +1432,13 @@ ISR(ADC_vect){
 //        rightcommand = -20;
 //        left_motor(leftcommand);
 //        right_motor(rightcommand);}
-//    
+//
 //    if (robot_orientation_filtered<(-0.3+opptarget)) { //left turn
 //        leftcommand = -20;
 //        rightcommand = 20;
 //        left_motor(leftcommand);
 //        right_motor(rightcommand);}
-//    
+//
 //    if ((-0.3+opptarget)<robot_orientation_filtered && robot_orientation_filtered<(opptarget)) {
 //        //forward
 //        leftcommand = 40;
@@ -1451,6 +1451,5 @@ ISR(ADC_vect){
 //        left_motor(leftcommand);
 //        right_motor(rightcommand);
 //    }
-//    
+//
 //}
-
