@@ -53,13 +53,16 @@
 #define Straight 13
 
 
-
 //OTHER CONSTANTS
 #define RED 1
 #define BLUE 2
 #define FORWARD 8
 #define POSSESSPUCK 10
 
+#define low 40
+#define high 100
+#define plow 30
+#define phigh 50
 
 
 // STATES: Currently operating in only state 1 which has been repurposed to localisation and communication with the other M2. State 2 is motor driving depending on initial location and orientation. Change the right State=1 commands to State=2 commands to re-enable the qualifying code. Note: I have the states switch with receipt of a play command
@@ -121,8 +124,10 @@ float robot_orientation_dir;
 float robot_orientation_fil;
 float x_robot_position_fil;
 float y_robot_position_fil;
-int OppGoalSign;
-float t = .1;
+int OppGoalSign=-1;
+float t = .15;
+
+
 
 
 volatile bool send_flag = 0;
@@ -150,13 +155,17 @@ int main(void){
     
     while(TRUE) {
         if (m_usb_isconnected()) {
-            m_usb_tx_int((int)(robot_position[0])); //X position, whatever that means
-            m_usb_tx_string("\t");
-            m_usb_tx_int((int)(robot_position[1])); //Y position
-            m_usb_tx_string("\t");
-            m_usb_tx_int((int)(robot_orientation*127/6.3)); //Orientation converted from radians to a fraction of 127
-            m_usb_tx_string("\t");
+//            m_usb_tx_int((int)(robot_position[0])); //X position, whatever that means
+//            m_usb_tx_string("\t");
+//            m_usb_tx_int((int)(robot_position[1])); //Y position
+//            m_usb_tx_string("\t");
             m_usb_tx_int((int)State);
+            m_usb_tx_string("\t");
+            m_usb_tx_int((int)(robot_orientation_fil*127/6.3)); //Orientation converted from radians to a fraction of 127
+            m_usb_tx_string("\t");
+            m_usb_tx_int((int)x_robot_position_fil);
+            m_usb_tx_string("\t");
+            m_usb_tx_int((int)y_robot_position_fil);
             m_usb_tx_string("\t");
             m_usb_tx_int((int)GoalState);
             m_usb_tx_string("\t");
@@ -291,8 +300,105 @@ int main(void){
                 //blue_LED(OFF);
                 
                 white_LED(ON);
+                green_LED(OFF);
+                GoalState = 2;
                 
-                goScore();
+                if (y_robot_position_fil<35 && y_robot_position_fil>0) {
+                    if(robot_orientation_fil>PI && robot_orientation_fil<(2*PI)){
+                        GoalState = 1;
+                        rightcommand = low;
+                        leftcommand = high;
+                    }
+                    if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
+                        GoalState = 2;
+                        rightcommand = high;
+                        leftcommand = low;
+                    }
+                    
+                    if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
+                        GoalState = 3;
+                        rightcommand = low;
+                        leftcommand = high;
+                    }
+                    if(robot_orientation_fil<(PI/2+t) && robot_orientation_fil>(PI/2-t)){
+                        rightcommand = high;
+                        leftcommand = high;
+                        GoalState = 15;
+                    }
+                }
+                
+                if (y_robot_position_fil<0 && y_robot_position_fil>-35) {
+                    if(robot_orientation_fil>PI && robot_orientation_fil<(2*PI)){
+                        rightcommand = high;
+                        leftcommand = low;
+                        GoalState = 4;
+                    }
+                    if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
+                        rightcommand = high;
+                        leftcommand = low;
+                        GoalState = 5;
+                    }
+                    
+                    if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
+                        rightcommand = low;
+                        leftcommand = high;
+                        
+                        GoalState = 6;
+                    }
+                    if(robot_orientation_fil<(PI/2+t) && robot_orientation_fil>(PI/2-t)){
+                        rightcommand = high;
+                        leftcommand = high;
+                        GoalState = 15;
+                    }
+                }
+                
+                if (y_robot_position_fil<-35) {
+                    if(robot_orientation_fil>PI && robot_orientation_fil<(3*PI/2)){
+                        rightcommand = low;
+                        leftcommand = high;
+                        GoalState = 7;
+                    }
+                    if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
+                        rightcommand = high;
+                        leftcommand = 0;
+                        GoalState = 8;
+                    }
+                    if(robot_orientation_fil>(3*PI/2) && robot_orientation_fil<(2*PI)){
+                        rightcommand = 0;
+                        leftcommand = high;
+                        GoalState = 9;
+                    }
+                    if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
+                        rightcommand = low;
+                        leftcommand = high;
+                        GoalState = 10;
+                    }
+                }
+                
+                if (y_robot_position_fil>35) {
+                    if(robot_orientation_fil>PI && robot_orientation_fil<(3*PI/2)){
+                        rightcommand = high;
+                        leftcommand = 0;
+                        GoalState = 11;
+                    }
+                    if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
+                        rightcommand = low;
+                        leftcommand = high;
+                        GoalState = 12;
+                    }
+                    if(robot_orientation_fil>(3*PI/2) && robot_orientation_fil<(2*PI)){
+                        rightcommand = high;
+                        leftcommand = low;
+                        GoalState = 13;
+                    }
+                    if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
+                        rightcommand = 0;
+                        leftcommand = high;
+                        GoalState = 14;
+                    }
+                }
+                
+               
                 right_motor(rightcommand);
                 left_motor(leftcommand);
                 
@@ -517,6 +623,7 @@ bool find_position(unsigned int star_data[]) {
     switch (LocState) {
         case 1: //ALL STARS FOUND
             m_green(ON);
+            m_red(OFF);
             // calculate all distances and store them in array, find maximum of these distances
             for (i = 0; i < 4; i++) {
                 for (j = 0; j < 4; j++) {
@@ -603,6 +710,7 @@ bool find_position(unsigned int star_data[]) {
         case 2: //3-star case. If star_data[i] = 1023, throw out data point, make new array, assume axial stars. Will later perform ratio calculations on the other three to determine axial stars, rotate that axis.
 
             m_green(ON);
+            m_red(ON);
             
             int skip = 0;
             int i =0;
@@ -728,8 +836,6 @@ float dot(float v1[2], float v2[2]) {
 
 void findPuck(void) {
 
-    white_LED(ON);
-    
     int maxchannel = 0;
     float maxADC = 0;
     int z = 0;
@@ -757,8 +863,8 @@ void findPuck(void) {
     
     switch (maxchannel) {
         case 0:
-            puckdirr= 20;
-            puckdirl = -20;
+            puckdirr= plow;
+            puckdirl = -plow;
             //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
             //            m_port_set(m_port_ADDRESS,PORTG,PIN0);
             //            m_port_clear(m_port_ADDRESS,PORTH,PIN0); //clear the h0 port corresponding to no adc
@@ -766,8 +872,8 @@ void findPuck(void) {
             //pindirection = 0;
             break;
         case 1:
-            puckdirr = 20;
-            puckdirl= -20;
+            puckdirr = plow;
+            puckdirl= -plow;
             //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
             //            m_port_set(m_port_ADDRESS,PORTG,PIN1);
             //            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
@@ -775,8 +881,8 @@ void findPuck(void) {
             //pindirection = 1;
             break;
         case 2:
-            puckdirr = 20;
-            puckdirl= -20;
+            puckdirr = plow;
+            puckdirl= -plow;
             //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
             //            m_port_set(m_port_ADDRESS,PORTG,PIN2);
             //            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
@@ -784,8 +890,8 @@ void findPuck(void) {
             //pindirection = 2;
             break;
         case 3:
-            puckdirr = 20;
-            puckdirl= -20;
+            puckdirr = plow;
+            puckdirl= -plow;
             //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
             //            m_port_set(m_port_ADDRESS,PORTG,PIN3);
             //            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
@@ -793,8 +899,8 @@ void findPuck(void) {
             //pindirection = 3;
             break;
         case 4:
-            puckdirr = 20;
-            puckdirl= -20;
+            puckdirr = plow;
+            puckdirl= -plow;
             //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
             //            m_port_set(m_port_ADDRESS,PORTG,PIN4);
             //            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
@@ -802,8 +908,8 @@ void findPuck(void) {
             //pindirection = 4;
             break;
         case 5:
-            puckdirr = -20;
-            puckdirl= 20;
+            puckdirr = -plow;
+            puckdirl= plow;
             //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
             //            m_port_set(m_port_ADDRESS,PORTG,PIN5);
             //            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
@@ -811,8 +917,8 @@ void findPuck(void) {
             //pindirection = 5;
             break;
         case 6:
-            puckdirr = -20;
-            puckdirl= 20;
+            puckdirr = -plow;
+            puckdirl= plow;
             //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
             //            m_port_set(m_port_ADDRESS,PORTG,PIN6);
             //            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
@@ -820,8 +926,8 @@ void findPuck(void) {
             //pindirection = 6;
             break;
         case 7:
-            puckdirr = -20;
-            puckdirl= 20;
+            puckdirr = -plow;
+            puckdirl= plow;
             //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
             //            m_port_set(m_port_ADDRESS,PORTG,PIN7);
             //            m_port_clear(m_port_ADDRESS,PORTH,PIN0);
@@ -830,13 +936,13 @@ void findPuck(void) {
             break;
             
         case FORWARD:
-            puckdirr = 20;
-            puckdirl = 20;
+            puckdirr = phigh;
+            puckdirl = phigh;
             break;
             
         case 9:
-            puckdirr = 20;
-            puckdirl= -20;
+            puckdirr = plow;
+            puckdirl= -plow;
             //            m_port_clear(m_port_ADDRESS,PORTG,lastPin);
             //            m_port_set(m_port_ADDRESS,PORTH,PIN0);
             //pindirection = 8;
@@ -851,125 +957,125 @@ void findPuck(void) {
 
 void goScore(void) {
     
-    if (y_robot_position_fil<35 && y_robot_position_fil>0) {
-        if(robot_orientation_fil>PI && robot_orientation_fil<(2*PI)){
-            GoalState = OppArcGoalHigh;
-        }
-        if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
-            GoalState = OppArcGoalHigh;
-        }
-        
-        if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
-            GoalState = ToArcGoalHigh;
-        }
-        if(robot_orientation_fil<(PI/2+t) && robot_orientation_fil>(PI/2-t)){
-            GoalState = Straight;
-        }
-    }
-    
-    if (y_robot_position_fil<0 && y_robot_position_fil>-35) {
-        if(robot_orientation_fil>PI && robot_orientation_fil<(2*PI)){
-            GoalState = OppArcGoalLow;
-        }
-        if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
-            GoalState = OppArcGoalLow;
-        }
-        
-        if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
-            GoalState = ToArcGoalLow;
-        }
-        if(robot_orientation_fil<(PI/2+t) && robot_orientation_fil>(PI/2-t)){
-            GoalState = Straight;
-        }
-    }
-    
-    if (y_robot_position_fil<-35) {
-        if(robot_orientation_fil>PI && robot_orientation_fil<(3*PI/2)){
-            GoalState = OppSpinEdgeLow;
-        }
-        if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
-            GoalState = ToArcEdgeLow;
-        }
-        if(robot_orientation_fil>(3*PI/2) && robot_orientation_fil>0){
-            GoalState = OppArcEdgeLow;
-        }
-        if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
-            GoalState = ToSpinEdgeLow;
-        }
-    }
-    
-    if (y_robot_position_fil>35) {
-        if(robot_orientation_fil>PI && robot_orientation_fil<(3*PI/2)){
-            GoalState = OppArcEdgeHigh;
-        }
-        if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
-            GoalState = ToSpinEdgeHigh;
-        }
-        if(robot_orientation_fil>(3*PI/2) && robot_orientation_fil>0){
-            GoalState = OppSpinEdgeHigh;
-        }
-        if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
-            GoalState = ToArcEdgeHigh;
-        }
-    }
-    
-    switch (GoalState) {
-        case OppArcGoalHigh:
-            rightcommand =20;
-            leftcommand =40;
-            break;
-        case ToArcGoalHigh:
-            rightcommand =40;
-            leftcommand =20;
-            break;
-        case OppArcGoalLow:
-            rightcommand = 40;
-            leftcommand = 20;
-            break;
-        case ToArcGoalLow:
-            rightcommand = 20;
-            leftcommand = 40;
-            break;
-        case OppArcEdgeHigh:
-            rightcommand = 20;
-            leftcommand = 40;
-            break;
-        case ToArcEdgeHigh:
-            rightcommand = 40;
-            leftcommand = 20;
-            break;
-        case OppArcEdgeLow:
-            rightcommand = 40;
-            leftcommand = 20;
-            break;
-        case ToArcEdgeLow:
-            rightcommand = 20;
-            leftcommand = 40;
-            break;
-        case ToSpinEdgeLow:
-            rightcommand = 0;
-            leftcommand = 20;
-            break;
-        case OppSpinEdgeLow:
-            rightcommand = 20;
-            leftcommand = 0;
-            break;
-        case ToSpinEdgeHigh:
-            rightcommand = 20;
-            leftcommand = 0;
-            break;
-        case OppSpinEdgeHigh:
-            rightcommand = 0;
-            leftcommand = 20;
-            break;
-        case Straight:
-            rightcommand = 30;
-            leftcommand = 30;
-            break;
-        default:
-            GoalState = Straight;
-            break;
-    }
+//    if (y_robot_position_fil<35 && y_robot_position_fil>0) {
+//        if(robot_orientation_fil>PI && robot_orientation_fil<(2*PI)){
+//            GoalState = OppArcGoalHigh;
+//        }
+//        if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
+//            GoalState = OppArcGoalHigh;
+//        }
+//        
+//        if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
+//            GoalState = ToArcGoalHigh;
+//        }
+//        if(robot_orientation_fil<(PI/2+t) && robot_orientation_fil>(PI/2-t)){
+//            GoalState = Straight;
+//        }
+//    }
+//    
+//    if (y_robot_position_fil<0 && y_robot_position_fil>-35) {
+//        if(robot_orientation_fil>PI && robot_orientation_fil<(2*PI)){
+//            GoalState = OppArcGoalLow;
+//        }
+//        if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
+//            GoalState = OppArcGoalLow;
+//        }
+//        
+//        if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
+//            GoalState = ToArcGoalLow;
+//        }
+//        if(robot_orientation_fil<(PI/2+t) && robot_orientation_fil>(PI/2-t)){
+//            GoalState = Straight;
+//        }
+//    }
+//    
+//    if (y_robot_position_fil<-35) {
+//        if(robot_orientation_fil>PI && robot_orientation_fil<(3*PI/2)){
+//            GoalState = OppSpinEdgeLow;
+//        }
+//        if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
+//            GoalState = ToArcEdgeLow;
+//        }
+//        if(robot_orientation_fil>(3*PI/2) && robot_orientation_fil>0){
+//            GoalState = OppArcEdgeLow;
+//        }
+//        if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
+//            GoalState = ToSpinEdgeLow;
+//        }
+//    }
+//    
+//    if (y_robot_position_fil>35) {
+//        if(robot_orientation_fil>PI && robot_orientation_fil<(3*PI/2)){
+//            GoalState = OppArcEdgeHigh;
+//        }
+//        if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
+//            GoalState = ToSpinEdgeHigh;
+//        }
+//        if(robot_orientation_fil>(3*PI/2) && robot_orientation_fil>0){
+//            GoalState = OppSpinEdgeHigh;
+//        }
+//        if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
+//            GoalState = ToArcEdgeHigh;
+//        }
+//    }
+//    
+//    switch (GoalState) {
+//        case OppArcGoalHigh:
+//            rightcommand =10;
+//            leftcommand =20;
+//            break;
+//        case ToArcGoalHigh:
+//            rightcommand =20;
+//            leftcommand =10;
+//            break;
+//        case OppArcGoalLow:
+//            rightcommand = 20;
+//            leftcommand = 10;
+//            break;
+//        case ToArcGoalLow:
+//            rightcommand = 10;
+//            leftcommand = 20;
+//            break;
+//        case OppArcEdgeHigh:
+//            rightcommand = 10;
+//            leftcommand = 20;
+//            break;
+//        case ToArcEdgeHigh:
+//            rightcommand = 20;
+//            leftcommand = 10;
+//            break;
+//        case OppArcEdgeLow:
+//            rightcommand = 20;
+//            leftcommand = 10;
+//            break;
+//        case ToArcEdgeLow:
+//            rightcommand = 10;
+//            leftcommand = 20;
+//            break;
+//        case ToSpinEdgeLow:
+//            rightcommand = 0;
+//            leftcommand = 20;
+//            break;
+//        case OppSpinEdgeLow:
+//            rightcommand = 20;
+//            leftcommand = 0;
+//            break;
+//        case ToSpinEdgeHigh:
+//            rightcommand = 20;
+//            leftcommand = 0;
+//            break;
+//        case OppSpinEdgeHigh:
+//            rightcommand = 0;
+//            leftcommand = 20;
+//            break;
+//        case Straight:
+//            rightcommand = 30;
+//            leftcommand = 30;
+//            break;
+//        default:
+//            GoalState = Straight;
+//            break;
+//    }
 
 }
 
