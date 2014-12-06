@@ -140,13 +140,15 @@ void blue_LED(bool status);
 void white_LED(bool status);
 void green_LED(bool status);
 void findPuck(void);
+void goScore(void);
 
 int main(void){
+    
     init();
     //    green_LED(OFF);
     //    white_LED(OFF);
+    
     while(TRUE) {
-        
         if (m_usb_isconnected()) {
             m_usb_tx_int((int)(robot_position[0])); //X position, whatever that means
             m_usb_tx_string("\t");
@@ -188,17 +190,12 @@ int main(void){
             send_flag = 0;
        	}
         
-        
         switch (State) { //** Necessary states for 11/24: 1 = Wait |  2 = drive to opposite side of rink
             case Listen: //Wait for PLAY command
-                leftcommand = 40;
-                rightcommand = 0;
-                left_motor(leftcommand);
-                right_motor(rightcommand);
                 white_LED(OFF);
                 red_LED(OFF);
                 blue_LED(OFF);
-                green_LED(ON);
+                green_LED(OFF);
                 // blink led to confirm which goal is selected (will only occur at startup)
                 if (check(PIND, PIN3) && goalSwitchBlink) {
                     red_LED(ON);
@@ -224,8 +221,6 @@ int main(void){
                 break;
                 
             case Qualify:
-                red_LED(OFF);
-                blue_LED(ON);
                 white_LED(OFF);
                 if (checkside == 0) {
                     checkside = 1;
@@ -279,8 +274,9 @@ int main(void){
                 //red_LED(ON);
                 //red_LED(OFF);
                 //blue_LED(OFF);
+                
                 white_LED(OFF);
-                green_LED(OFF);
+                green_LED(ON);
                 findPuck();
                 rightcommand = (puckdirr);
                 leftcommand = (puckdirl);
@@ -296,126 +292,7 @@ int main(void){
                 
                 white_LED(ON);
                 
-                if (y_robot_position_fil<35 && y_robot_position_fil>0) {
-                    if(robot_orientation_fil>PI && robot_orientation_fil<(2*PI)){
-                        GoalState = OppArcGoalHigh;
-                    }
-                    if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
-                        GoalState = OppArcGoalHigh;
-                    }
-                    
-                    if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
-                        GoalState = ToArcGoalHigh;
-                    }
-                    if(robot_orientation_fil<(PI/2+t) && robot_orientation_fil>(PI/2-t)){
-                        GoalState = Straight;
-                    }
-                }
-                
-                if (y_robot_position_fil<0 && y_robot_position_fil>-35) {
-                    if(robot_orientation_fil>PI && robot_orientation_fil<(2*PI)){
-                        GoalState = OppArcGoalLow;
-                    }
-                    if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
-                        GoalState = OppArcGoalLow;
-                    }
-                    
-                    if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
-                        GoalState = ToArcGoalLow;
-                    }
-                    if(robot_orientation_fil<(PI/2+t) && robot_orientation_fil>(PI/2-t)){
-                        GoalState = Straight;
-                    }
-                }
-                
-                if (y_robot_position_fil<-35) {
-                    if(robot_orientation_fil>PI && robot_orientation_fil<(3*PI/2)){
-                        GoalState = OppSpinEdgeLow;
-                    }
-                    if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
-                        GoalState = ToArcEdgeLow;
-                    }
-                    if(robot_orientation_fil>(3*PI/2) && robot_orientation_fil>0){
-                        GoalState = OppArcEdgeLow;
-                    }
-                    if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
-                        GoalState = ToSpinEdgeLow;
-                    }
-                }
-                
-                if (y_robot_position_fil>35) {
-                    if(robot_orientation_fil>PI && robot_orientation_fil<(3*PI/2)){
-                        GoalState = OppArcEdgeHigh;
-                    }
-                    if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
-                        GoalState = ToSpinEdgeHigh;
-                    }
-                    if(robot_orientation_fil>(3*PI/2) && robot_orientation_fil>0){
-                        GoalState = OppSpinEdgeHigh;
-                    }
-                    if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
-                        GoalState = ToArcEdgeHigh;
-                    }
-                }
-                
-                switch (GoalState) {
-                    case OppArcGoalHigh:
-                        rightcommand =20;
-                        leftcommand =40;
-                        break;
-                    case ToArcGoalHigh:
-                        rightcommand =40;
-                        leftcommand =20;
-                        break;
-                    case OppArcGoalLow:
-                        rightcommand = 40;
-                        leftcommand = 20;
-                        break;
-                    case ToArcGoalLow:
-                        rightcommand = 20;
-                        leftcommand = 40;
-                        break;
-                    case OppArcEdgeHigh:
-                        rightcommand = 20;
-                        leftcommand = 40;
-                        break;
-                    case ToArcEdgeHigh:
-                        rightcommand = 40;
-                        leftcommand = 20;
-                        break;
-                    case OppArcEdgeLow:
-                        rightcommand = 40;
-                        leftcommand = 20;
-                        break;
-                    case ToArcEdgeLow:
-                        rightcommand = 20;
-                        leftcommand = 40;
-                        break;
-                    case ToSpinEdgeLow:
-                        rightcommand = 0;
-                        leftcommand = 20;
-                        break;
-                    case OppSpinEdgeLow:
-                        rightcommand = 20;
-                        leftcommand = 0;
-                        break;
-                    case ToSpinEdgeHigh:
-                        rightcommand = 20;
-                        leftcommand = 0;
-                        break;
-                    case OppSpinEdgeHigh:
-                        rightcommand = 0;
-                        leftcommand = 20;
-                        break;
-                    case Straight:
-                        rightcommand = 30;
-                        leftcommand = 30;
-                        break;
-                    default:
-                        GoalState = Straight;
-                        break;
-                }
-                
+                goScore();
                 right_motor(rightcommand);
                 left_motor(leftcommand);
                 
@@ -639,7 +516,6 @@ bool find_position(unsigned int star_data[]) {
     
     switch (LocState) {
         case 1: //ALL STARS FOUND
-            m_red(OFF);
             m_green(ON);
             // calculate all distances and store them in array, find maximum of these distances
             for (i = 0; i < 4; i++) {
@@ -725,8 +601,7 @@ bool find_position(unsigned int star_data[]) {
             break;
             
         case 2: //3-star case. If star_data[i] = 1023, throw out data point, make new array, assume axial stars. Will later perform ratio calculations on the other three to determine axial stars, rotate that axis.
-            
-            m_red(ON);
+
             m_green(ON);
             
             int skip = 0;
@@ -852,6 +727,9 @@ float dot(float v1[2], float v2[2]) {
 }
 
 void findPuck(void) {
+
+    white_LED(ON);
+    
     int maxchannel = 0;
     float maxADC = 0;
     int z = 0;
@@ -971,27 +849,152 @@ void findPuck(void) {
     }
 }
 
+void goScore(void) {
+    
+    if (y_robot_position_fil<35 && y_robot_position_fil>0) {
+        if(robot_orientation_fil>PI && robot_orientation_fil<(2*PI)){
+            GoalState = OppArcGoalHigh;
+        }
+        if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
+            GoalState = OppArcGoalHigh;
+        }
+        
+        if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
+            GoalState = ToArcGoalHigh;
+        }
+        if(robot_orientation_fil<(PI/2+t) && robot_orientation_fil>(PI/2-t)){
+            GoalState = Straight;
+        }
+    }
+    
+    if (y_robot_position_fil<0 && y_robot_position_fil>-35) {
+        if(robot_orientation_fil>PI && robot_orientation_fil<(2*PI)){
+            GoalState = OppArcGoalLow;
+        }
+        if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
+            GoalState = OppArcGoalLow;
+        }
+        
+        if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
+            GoalState = ToArcGoalLow;
+        }
+        if(robot_orientation_fil<(PI/2+t) && robot_orientation_fil>(PI/2-t)){
+            GoalState = Straight;
+        }
+    }
+    
+    if (y_robot_position_fil<-35) {
+        if(robot_orientation_fil>PI && robot_orientation_fil<(3*PI/2)){
+            GoalState = OppSpinEdgeLow;
+        }
+        if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
+            GoalState = ToArcEdgeLow;
+        }
+        if(robot_orientation_fil>(3*PI/2) && robot_orientation_fil>0){
+            GoalState = OppArcEdgeLow;
+        }
+        if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
+            GoalState = ToSpinEdgeLow;
+        }
+    }
+    
+    if (y_robot_position_fil>35) {
+        if(robot_orientation_fil>PI && robot_orientation_fil<(3*PI/2)){
+            GoalState = OppArcEdgeHigh;
+        }
+        if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
+            GoalState = ToSpinEdgeHigh;
+        }
+        if(robot_orientation_fil>(3*PI/2) && robot_orientation_fil>0){
+            GoalState = OppSpinEdgeHigh;
+        }
+        if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
+            GoalState = ToArcEdgeHigh;
+        }
+    }
+    
+    switch (GoalState) {
+        case OppArcGoalHigh:
+            rightcommand =20;
+            leftcommand =40;
+            break;
+        case ToArcGoalHigh:
+            rightcommand =40;
+            leftcommand =20;
+            break;
+        case OppArcGoalLow:
+            rightcommand = 40;
+            leftcommand = 20;
+            break;
+        case ToArcGoalLow:
+            rightcommand = 20;
+            leftcommand = 40;
+            break;
+        case OppArcEdgeHigh:
+            rightcommand = 20;
+            leftcommand = 40;
+            break;
+        case ToArcEdgeHigh:
+            rightcommand = 40;
+            leftcommand = 20;
+            break;
+        case OppArcEdgeLow:
+            rightcommand = 40;
+            leftcommand = 20;
+            break;
+        case ToArcEdgeLow:
+            rightcommand = 20;
+            leftcommand = 40;
+            break;
+        case ToSpinEdgeLow:
+            rightcommand = 0;
+            leftcommand = 20;
+            break;
+        case OppSpinEdgeLow:
+            rightcommand = 20;
+            leftcommand = 0;
+            break;
+        case ToSpinEdgeHigh:
+            rightcommand = 20;
+            leftcommand = 0;
+            break;
+        case OppSpinEdgeHigh:
+            rightcommand = 0;
+            leftcommand = 20;
+            break;
+        case Straight:
+            rightcommand = 30;
+            leftcommand = 30;
+            break;
+        default:
+            GoalState = Straight;
+            break;
+    }
+
+}
+
+
 void left_motor(int leftcommand){
     
-    if(leftcommand>0){
-        set(PORTB,PIN0); //Set B0 to go forward
-        clear(PORTB,PIN1);
+    if(leftcommand>=0){
+        set(PORTB,PIN2); //Set B2 to go forward
+        clear(PORTB,PIN3);
         OCR4B = leftcommand*timer0count;}
     
-    else{clear(PORTB,PIN0); //Set B0 to go forward
-        set(PORTB,PIN1);
+    else{clear(PORTB,PIN2); //Set B2 to go forward
+        set(PORTB,PIN3);
         OCR4B = -1*leftcommand*timer0count;}
 }
 
 void right_motor(int rightcommand){
-    if(rightcommand>0){
+    if(rightcommand>=0){
         OCR4A = rightcommand*timer0count;
-        set(PORTB,PIN2); //Set B2 to go forward
-        clear(PORTB,PIN3);}
+        set(PORTB,PIN0); //Set B0 to go forward
+        clear(PORTB,PIN1);}
     else{
         OCR4A = -1*rightcommand*timer0count;
-        clear(PORTB,PIN2); //Set B2 to go forward
-        set(PORTB,PIN3);}
+        clear(PORTB,PIN0); //Set B0 to go forward
+        set(PORTB,PIN1);}
 }
 
 void red_LED(bool status) {
