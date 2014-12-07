@@ -62,12 +62,8 @@
 #define low 40
 #define high 100
 #define plow 30
-#define phigh 50
+#define phigh 70
 
-
-// STATES: Currently operating in only state 1 which has been repurposed to localisation and communication with the other M2. State 2 is motor driving depending on initial location and orientation. Change the right State=1 commands to State=2 commands to re-enable the qualifying code. Note: I have the states switch with receipt of a play command
-//LOCALISATION SENDING: I changed the send_data array to send the star positions for debugging, but change the packet lengths back and uncomment the send data stuff when we figure that out. Timer1 was not sending an interrupt so we commented it out, but ideally we will use it's 10hz overflow interrupt to find and send position.
-//MOTOR CONTROL: The motor commands are set by valuing a signed int "leftcommand" or "rightcommand" to duty cycle in percent with positive being forward and negative being backward. I havent been able to test with the h-bridge yet obviously, so we will have to make sure that we are setting and clearing the right pins for direction. Right and left motors could be switched too, depending on how we plug in the molex.
 
 char buffer[PACKET_LENGTH_READ] = {0,0,0,0,0,0,0,0,0,0}; //data to be received
 char send_data[PACKET_LENGTH_SEND] = {0,0,0,0,0,0,0,0,0,0}; // data to be sent to game controller
@@ -96,7 +92,7 @@ int testvar = 0;
 float direction = 0;
 float opptarget = 1.57; //angle of opponents goal
 volatile int lastPin = 0;
-volatile int oppgoal = -130; //x position of opponents goal - will  be determined by comm or switch
+volatile int oppgoal = 130; //x position of opponents goal - will  be determined by comm or switch
 //ADC variables
 //ADC Order = L1, L2, L3, L4, R4, R3, R2 ,R1
 float adcoffset[8] = {190,350,350,280,400,250,380,190};
@@ -126,6 +122,13 @@ float x_robot_position_fil;
 float y_robot_position_fil;
 int OppGoalSign=-1;
 float t = .15;
+float robot_orientation_old;
+float robot_position_x_old;
+float robot_position_y_old;
+
+int stallcount;
+int stallup;
+int redblueswitch = 0;
 
 
 
@@ -146,6 +149,8 @@ void white_LED(bool status);
 void green_LED(bool status);
 void findPuck(void);
 void goScore(void);
+void stall(void);
+
 
 int main(void){
     
@@ -173,10 +178,34 @@ int main(void){
             m_usb_tx_string("\t");
             m_usb_tx_int((int)leftcommand);
             m_usb_tx_string("\t");
+            m_usb_tx_int((int)stallcount);
+            m_usb_tx_string("\t");
+            m_usb_tx_int((int)stallup);
+            m_usb_tx_string("\t");
             m_usb_tx_string("\n");
         }
         
-        if (send_flag == 1){
+        if(send_flag == 1){
+            
+            stallcount++;
+            if(stallcount == 5){
+                robot_orientation_old = robot_orientation;
+                robot_position_x_old = robot_position[0];
+                robot_position_y_old = robot_position[1];
+                stallcount = 0;
+            }
+            
+            
+            if(stallcount == 8 && abs(robot_position_x_old - robot_position[0])<3 && abs(robot_position_y_old-robot_position[1])<3) {
+                stallup++;
+            }
+            
+            if(stallup>=9){
+                stall();
+                stallup = 0;
+            }
+            
+            
             m_wii_read(star_data);
             find_position(star_data);
             
@@ -187,7 +216,8 @@ int main(void){
             else{robot_orientation_dir = robot_orientation - PI;}
             }
             
-            robot_orientation_fil = .95*robot_orientation_fil+.05*robot_orientation;
+            
+            robot_orientation_fil = .9*robot_orientation_fil+.1*robot_orientation_dir;
             x_robot_position_fil = robot_position[0]*OppGoalSign; //Our goal is always the positive side
             y_robot_position_fil = robot_position[1]*OppGoalSign; //The left of the rink from our perspective is always negative
             if (1) {
@@ -202,77 +232,36 @@ int main(void){
         switch (State) { //** Necessary states for 11/24: 1 = Wait |  2 = drive to opposite side of rink
             case Listen: //Wait for PLAY command
                 white_LED(OFF);
-                red_LED(OFF);
-                blue_LED(OFF);
                 green_LED(OFF);
                 // blink led to confirm which goal is selected (will only occur at startup)
                 if (check(PIND, PIN3) && goalSwitchBlink) {
                     red_LED(ON);
-                    m_wait(100);
+                    m_wait(200);
                     red_LED(OFF);
                     blue_LED(OFF);
-                    oppgoal = 130; // may need to be switched
-                    opptarget = 3*PI/2;
                     OppGoalSign = -1;
                     goal = RED;
                     goalSwitchBlink = 0;
+                    redblueswitch = 1;
                 } else if (!check(PIND, PIN3) && goalSwitchBlink) {
                     blue_LED(ON);
-                    m_wait(100);
+                    m_wait(200);
                     blue_LED(OFF);
                     red_LED(OFF);
-                    oppgoal = -130; // may need to be switched
-                    opptarget = PI/2;
                     OppGoalSign = 1;
                     goal = BLUE;
                     goalSwitchBlink = 0;
+                    redblueswitch = 1;
                 }
-                break;
-                
-            case Qualify:
-                white_LED(OFF);
-                if (checkside == 0) {
-                    checkside = 1;
-                    if (robot_position[0] < 0){
-                        target = 3*PI/2;
-                        postarget = 100;
-                    }
-                    else {
-                        target = PI/2;
-                        postarget = -100;
-                    }
-                    m_wait(100);
+                if(m_port_check(m_port_ADDRESS,PORTG,PIN2) && redblueswitch) {
+                    red_LED(ON);
+                    blue_LED(OFF);
+                    redblueswitch = 0;
                 }
-                
-                if (abs(robot_position[0])<(abs(postarget))) {
-                    
-                    if (robot_orientation_filtered>(0.3+target)) { //right spin
-                        leftcommand = 20;
-                        rightcommand = -20;
-                        left_motor(leftcommand);
-                        right_motor(rightcommand);
-                    }
-                    
-                    
-                    if (robot_orientation_filtered<(-0.3+target)) { //left spin
-                        leftcommand = -20;
-                        rightcommand = 20;
-                        left_motor(leftcommand);
-                        right_motor(rightcommand);
-                    }
-                    
-                    
-                    if ((-0.3+target)<robot_orientation_filtered && robot_orientation<(0.3+target)) {
-                        //forward
-                        leftcommand = 20;
-                        rightcommand = 20;
-                        left_motor(leftcommand);
-                        right_motor(rightcommand);
-                    }
-                    
-                    
-                } else {
-                    State=Qualify;
+                if(!m_port_check(m_port_ADDRESS,PORTG,PIN2) && redblueswitch) {
+                    blue_LED(ON);
+                    red_LED(OFF);
+                    redblueswitch = 0;
                 }
                 break;
                 
@@ -301,7 +290,6 @@ int main(void){
                 
                 white_LED(ON);
                 green_LED(OFF);
-                GoalState = 2;
                 
                 if (y_robot_position_fil<35 && y_robot_position_fil>0) {
                     if(robot_orientation_fil>PI && robot_orientation_fil<(2*PI)){
@@ -409,6 +397,7 @@ int main(void){
                 break;
                 
             case Follow:
+                
                 //Transition to: Team has Puck
                 //Transition from: Team lost Puck
                 break;
@@ -417,7 +406,7 @@ int main(void){
             case ShootPuck:
                 //Transition to: No Obstacles
                 //Transition from: Default to Puck seek
-                
+                    
                 break;
                 
             case Celebration:
@@ -447,6 +436,11 @@ int main(void){
 
 //Initialize
 void init(void) {
+    //Kicker clear pin
+    set(DDRD, PIN5);
+    clear(PORTD,PIN5);
+    
+    
     m_clockdivide(0); // 16 MHz clock
     m_disableJTAG();
     
@@ -560,7 +554,7 @@ void init(void) {
     /////////////////////////// m_port register G to output //////////////////////
     m_port_set(m_port_ADDRESS,DDRG,0);
     m_port_set(m_port_ADDRESS,DDRG,1);
-    m_port_set(m_port_ADDRESS,DDRG,2);
+    m_port_clear(m_port_ADDRESS,DDRG,2);
     m_port_set(m_port_ADDRESS,DDRG,3);
     m_port_set(m_port_ADDRESS,DDRG,4);
     m_port_set(m_port_ADDRESS,DDRG,5);
@@ -1079,6 +1073,38 @@ void goScore(void) {
 
 }
 
+void stall(void) {
+    if(State == PuckFind)
+    {
+        if(robot_orientation_fil<(PI/2) && robot_orientation_fil>0)
+        {leftcommand = -40;
+            rightcommand = 0;
+        }
+        if(robot_orientation_fil>(3*PI/2) && robot_orientation_fil<=2*PI){
+            rightcommand = -40;
+            leftcommand = 0;
+        }
+        if(robot_orientation_fil>(PI/2) && robot_orientation_fil<(PI))
+        {rightcommand = -40;
+            leftcommand = 0;
+        }
+        if(robot_orientation_fil>PI && robot_orientation_fil<(3*PI/2))
+        {rightcommand = 0;
+            leftcommand = -40;}
+    }
+    
+    if(State == GoToGoal){
+        leftcommand = 100;
+        rightcommand = 100;}
+    
+    if(State == Listen){
+        leftcommand = 0;
+        rightcommand = 0;}
+    
+    right_motor(rightcommand);
+    left_motor(leftcommand);
+    m_wait(200);
+}
 
 void left_motor(int leftcommand){
     
@@ -1152,25 +1178,28 @@ ISR(INT2_vect){
     switch (CommState) {
         case COMM_TEST:
             if (goal == RED) {
+                blue_LED(OFF);
                 red_LED(ON);
                 m_wait(100);
                 red_LED(OFF);
+                redblueswitch = 1;
             } else {
+                red_LED(OFF);
                 blue_LED(ON);
                 m_wait(100);
                 blue_LED(OFF);
+                redblueswitch = 1;
             }
             break;
         case PLAY:
             State = PuckFind;
-            if (goal == RED) {
-                red_LED(ON);
-                blue_LED(OFF);
-            } else {
-                blue_LED(ON);
-                red_LED(OFF);
-            }
-            
+//            if (goal == RED) {
+//                red_LED(ON);
+//                blue_LED(OFF);
+//            } else {
+//                blue_LED(ON);
+//                red_LED(OFF);
+//            }
             break;
         case PAUSE:
             State = Listen;
@@ -1178,7 +1207,6 @@ ISR(INT2_vect){
         default:
             break;
     }
-    
     //Will determine values of oppgoal and opptarget
 }
 
@@ -1562,3 +1590,50 @@ ISR(ADC_vect){
 //    }
 //
 //}
+
+//case Qualify:
+//    white_LED(OFF);
+//    if (checkside == 0) {
+//        checkside = 1;
+//        if (robot_position[0] < 0){
+//            target = 3*PI/2;
+//            postarget = 100;
+//        }
+//        else {
+//            target = PI/2;
+//            postarget = -100;
+//        }
+//        m_wait(100);
+//    }
+//    
+//    if (abs(robot_position[0])<(abs(postarget))) {
+//        
+//        if (robot_orientation_filtered>(0.3+target)) { //right spin
+//            leftcommand = 20;
+//            rightcommand = -20;
+//            left_motor(leftcommand);
+//            right_motor(rightcommand);
+//        }
+//        
+//        
+//        if (robot_orientation_filtered<(-0.3+target)) { //left spin
+//            leftcommand = -20;
+//            rightcommand = 20;
+//            left_motor(leftcommand);
+//            right_motor(rightcommand);
+//        }
+//        
+//        
+//        if ((-0.3+target)<robot_orientation_filtered && robot_orientation<(0.3+target)) {
+//            //forward
+//            leftcommand = 20;
+//            rightcommand = 20;
+//            left_motor(leftcommand);
+//            right_motor(rightcommand);
+//        }
+//        
+//        
+//    } else {
+//        State=Qualify;
+//    }
+//    break;
