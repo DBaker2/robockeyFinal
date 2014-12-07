@@ -61,8 +61,8 @@
 
 #define low 40
 #define high 100
-#define plow 30
-#define phigh 70
+#define plow 40
+#define phigh 100
 
 
 char buffer[PACKET_LENGTH_READ] = {0,0,0,0,0,0,0,0,0,0}; //data to be received
@@ -127,6 +127,9 @@ float robot_position_x_old;
 float robot_position_y_old;
 int maxchannel;
 int adcflag = 1;
+char rf_counter = 0;
+bool commFlag = 0;
+
 
 int stallcount;
 int stallup;
@@ -149,11 +152,12 @@ void red_LED(bool status);
 void blue_LED(bool status);
 void white_LED(bool status);
 void green_LED(bool status);
+void yellow_LED(bool status);
 void findPuck(void);
 void goScore(void);
 void stall(void);
 void adcHandler(void);
-
+void commHandler(void);
 
 int main(void){
     
@@ -162,36 +166,46 @@ int main(void){
     //    white_LED(OFF);
     
     while(TRUE) {
+        // fiene said this might fix our rf problems
+        if (rf_counter >  30) {
+            rf_counter = 0;
+            m_rf_open(CHANNEL, RX_ADDRESS, PACKET_LENGTH_READ);
+        }
         if (m_usb_isconnected()) {
 //            m_usb_tx_int((int)(robot_position[0])); //X position, whatever that means
 //            m_usb_tx_string("\t");
 //            m_usb_tx_int((int)(robot_position[1])); //Y position
 //            m_usb_tx_string("\t");
 
-            m_usb_tx_char((char)buffer[0]);
-            m_usb_tx_string("\t");
-            m_usb_tx_int((int)(robot_orientation_fil*127/6.3)); //Orientation converted from radians to a fraction of 127
-            m_usb_tx_string("\t");
-            m_usb_tx_int((int)x_robot_position_fil);
-            m_usb_tx_string("\t");
-            m_usb_tx_int((int)y_robot_position_fil);
-            m_usb_tx_int((int)maxchannel);
-            m_usb_tx_string("\t");
-            m_usb_tx_int((int)GoalState);
-            m_usb_tx_string("\t");
-            m_usb_tx_int((int)rightcommand);
-            m_usb_tx_string("\t");
-            m_usb_tx_int((int)leftcommand);
-            m_usb_tx_string("\t");
-            m_usb_tx_int((int)stallcount);
-            m_usb_tx_string("\t");
-            m_usb_tx_int((int)stallup);
-            m_usb_tx_string("\t");
-            m_usb_tx_string("\n");
-            m_usb_tx_int((int)State);
-            m_usb_tx_string("\t");
+           m_usb_tx_string("L1 = ");
+        m_usb_tx_int(L1);
+        m_usb_tx_string("  ");
+m_usb_tx_string(" L2= ");
+m_usb_tx_int(L2);
+m_usb_tx_string("  L3 = ");
+m_usb_tx_int(L3);
+m_usb_tx_string("  ");
+m_usb_tx_string(" L4 = ");
+m_usb_tx_int(L4);
+m_usb_tx_string("  ");
+m_usb_tx_string(" R1 = ");
+m_usb_tx_int(R1);
+m_usb_tx_string("  ");
+m_usb_tx_string(" R2 = ");
+m_usb_tx_int(R2);
+m_usb_tx_string("  ");
+m_usb_tx_string(" R3 = ");
+m_usb_tx_int(R3);
+m_usb_tx_string("  ");
+m_usb_tx_string(" R4 = ");
+m_usb_tx_int(R4);
+m_usb_tx_string("\n");
+
         }
-        
+        if (commFlag) {
+            commHandler();
+        }
+
         if(adcflag){
             adcHandler();
             adcflag = 0;
@@ -243,24 +257,22 @@ int main(void){
         
         switch (State) { //** Necessary states for 11/24: 1 = Wait |  2 = drive to opposite side of rink
             case Listen: //Wait for PLAY command
-                
+                left_motor(0);
+                right_motor(-50);
                 white_LED(OFF);
+                yellow_LED(OFF);
                 green_LED(ON);
+                red_LED(OFF);
+                blue_LED(OFF);
                 // blink led to confirm which goal is selected (will only occur at startup)
                 if (check(PIND, PIN3) && goalSwitchBlink) {
                     red_LED(ON);
-                    m_wait(200);
-                    red_LED(OFF);
-                    blue_LED(OFF);
                     OppGoalSign = -1;
                     goal = RED;
                     goalSwitchBlink = 0;
                     redblueswitch = 1;
                 } else if (!check(PIND, PIN3) && goalSwitchBlink) {
                     blue_LED(ON);
-                    m_wait(200);
-                    blue_LED(OFF);
-                    red_LED(OFF);
                     OppGoalSign = 1;
                     goal = BLUE;
                     goalSwitchBlink = 0;
@@ -273,12 +285,10 @@ int main(void){
             case PuckFind:
                 //Transition to: Play Command, Puck Lost, Team Lost Puck, Puck Shot
                 //Transition from: Got the Puck, Team has Puck
-                //red_LED(ON);
-                //red_LED(OFF);
-                //blue_LED(OFF);
                 
                 white_LED(OFF);
-                green_LED(ON);
+                green_LED(OFF);
+                yellow_LED(ON);
                 findPuck();
                 rightcommand = (puckdirr);
                 leftcommand = (puckdirl);
@@ -294,6 +304,7 @@ int main(void){
                 
                 white_LED(ON);
                 green_LED(OFF);
+                yellow_LED(OFF);
                 
                 if (y_robot_position_fil<35 && y_robot_position_fil>0) {
                     if(robot_orientation_fil>PI && robot_orientation_fil<(2*PI)){
@@ -1251,49 +1262,7 @@ void right_motor(int rightcommand){
         set(PORTB,PIN1);}
 }
 
-void red_LED(bool status) {
-    if (status) {
-        set(PORTB, PIN4);
-    } else {
-        clear(PORTB, PIN4);
-    }
-}
-
-void blue_LED(bool status) {
-    if (status) {
-        set(PORTC, PIN6);
-    } else {
-        clear(PORTC, PIN6);
-    }
-}
-
-void white_LED(bool status) {
-    if (status) {
-        m_port_set(m_port_ADDRESS,PORTG,PIN0);
-    } else {
-        m_port_clear(m_port_ADDRESS,PORTG,PIN0);
-    }
-}
-
-void green_LED(bool status) {
-    if (status) {
-        m_port_set(m_port_ADDRESS,PORTG,PIN2);
-    } else {
-        m_port_clear(m_port_ADDRESS,PORTG,PIN2);
-    }
-}
-
-
-////
-ISR(TIMER1_OVF_vect) {
-    // when timer oveflows (set for 10Hz), process and transmit data
-    send_flag = 1;
-}
-
-
-// interupt when comm is recieved
-ISR(INT2_vect){
-    //red_LED(ON);
+void commHandler(void) {
     m_rf_read(buffer,PACKET_LENGTH_READ);
     char CommState = buffer[0];
     switch (CommState) {
@@ -1325,6 +1294,61 @@ ISR(INT2_vect){
         default:
             break;
     }
+    commFlag = 0;
+}
+void red_LED(bool status) {
+    if (status) {
+        set(PORTB, PIN4);
+    } else {
+        clear(PORTB, PIN4);
+    }
+}
+
+void blue_LED(bool status) {
+    if (status) {
+        set(PORTC, PIN6);
+    } else {
+        clear(PORTC, PIN6);
+    }
+}
+
+void white_LED(bool status) {
+    if (status) {
+        m_port_set(m_port_ADDRESS,PORTG,PIN3);
+    } else {
+        m_port_clear(m_port_ADDRESS,PORTG,PIN3);
+    }
+}
+
+void green_LED(bool status) {
+    if (status) {
+        m_port_set(m_port_ADDRESS,PORTG,PIN6);
+    } else {
+        m_port_clear(m_port_ADDRESS,PORTG,PIN6);
+    }
+}
+void yellow_LED(bool status) {
+    if (status) {
+        m_port_set(m_port_ADDRESS,PORTG,PIN0);
+    } else {
+        m_port_clear(m_port_ADDRESS,PORTG,PIN0);
+    }
+}
+
+
+
+////
+ISR(TIMER1_OVF_vect) {
+    // when timer oveflows (set for 10Hz), process and transmit data
+    send_flag = 1;
+    rf_counter++;
+}
+
+
+// interupt when comm is recieved
+ISR(INT2_vect){
+    commFlag = 1;
+    //red_LED(ON);
     //Will determine values of oppgoal and opptarget
 }
 
