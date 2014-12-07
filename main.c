@@ -61,8 +61,10 @@
 
 #define low 40
 #define high 100
-#define plow 40
+#define plow 30
 #define phigh 100
+#define pvlow 15
+
 
 
 char buffer[PACKET_LENGTH_READ] = {0,0,0,0,0,0,0,0,0,0}; //data to be received
@@ -133,7 +135,7 @@ bool commFlag = 0;
 
 int stallcount;
 int stallup;
-int redblueswitch = 0;
+int redblueswitch = 1;
 
 
 
@@ -172,40 +174,44 @@ int main(void){
             m_rf_open(CHANNEL, RX_ADDRESS, PACKET_LENGTH_READ);
         }
         if (m_usb_isconnected()) {
-//            m_usb_tx_int((int)(robot_position[0])); //X position, whatever that means
-//            m_usb_tx_string("\t");
-//            m_usb_tx_int((int)(robot_position[1])); //Y position
-//            m_usb_tx_string("\t");
-
-           m_usb_tx_string("L1 = ");
-        m_usb_tx_int(L1);
-        m_usb_tx_string("  ");
-m_usb_tx_string(" L2= ");
-m_usb_tx_int(L2);
-m_usb_tx_string("  L3 = ");
-m_usb_tx_int(L3);
-m_usb_tx_string("  ");
-m_usb_tx_string(" L4 = ");
-m_usb_tx_int(L4);
-m_usb_tx_string("  ");
-m_usb_tx_string(" R1 = ");
-m_usb_tx_int(R1);
-m_usb_tx_string("  ");
-m_usb_tx_string(" R2 = ");
-m_usb_tx_int(R2);
-m_usb_tx_string("  ");
-m_usb_tx_string(" R3 = ");
-m_usb_tx_int(R3);
-m_usb_tx_string("  ");
-m_usb_tx_string(" R4 = ");
-m_usb_tx_int(R4);
-m_usb_tx_string("\n");
-
+            //            m_usb_tx_int((int)(robot_position[0])); //X position, whatever that means
+            //            m_usb_tx_string("\t");
+            //            m_usb_tx_int((int)(robot_position[1])); //Y position
+            //            m_usb_tx_string("\t");
+            
+            m_usb_tx_string("L1=");
+            m_usb_tx_int(L1);
+            m_usb_tx_string("  ");
+            m_usb_tx_string("L2=");
+            m_usb_tx_int(L2);
+            m_usb_tx_string("L3 =");
+            m_usb_tx_int(L3);
+            m_usb_tx_string("  ");
+            m_usb_tx_string("L4 =");
+            m_usb_tx_int(L4);
+            m_usb_tx_string("  ");
+            m_usb_tx_string("R1=");
+            m_usb_tx_int(R1);
+            m_usb_tx_string("  ");
+            m_usb_tx_string("R2 =");
+            m_usb_tx_int(R2);
+            m_usb_tx_string("  ");
+            m_usb_tx_string("R3 =");
+            m_usb_tx_int(R3);
+            m_usb_tx_string("  ");
+            m_usb_tx_string("R4 =");
+            m_usb_tx_int(R4);
+            m_usb_tx_string("  ");
+            m_usb_tx_int(rightcommand);
+            m_usb_tx_string("  ");
+            m_usb_tx_int(leftcommand);
+            m_usb_tx_string("\n");
+            
         }
         if (commFlag) {
             commHandler();
         }
-
+        
         if(adcflag){
             adcHandler();
             adcflag = 0;
@@ -257,8 +263,10 @@ m_usb_tx_string("\n");
         
         switch (State) { //** Necessary states for 11/24: 1 = Wait |  2 = drive to opposite side of rink
             case Listen: //Wait for PLAY command
-                left_motor(0);
-                right_motor(-50);
+                leftcommand = 0;
+                rightcommand = 0;
+                left_motor(leftcommand);
+                right_motor(rightcommand);
                 white_LED(OFF);
                 yellow_LED(OFF);
                 green_LED(ON);
@@ -305,105 +313,8 @@ m_usb_tx_string("\n");
                 white_LED(ON);
                 green_LED(OFF);
                 yellow_LED(OFF);
+                goScore();
                 
-                if (y_robot_position_fil<35 && y_robot_position_fil>0) {
-                    if(robot_orientation_fil>PI && robot_orientation_fil<(2*PI)){
-                        GoalState = 1;
-                        rightcommand = low;
-                        leftcommand = high;
-                    }
-                    if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
-                        GoalState = 2;
-                        rightcommand = high;
-                        leftcommand = low;
-                    }
-                    
-                    if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
-                        GoalState = 3;
-                        rightcommand = low;
-                        leftcommand = high;
-                    }
-                    if(robot_orientation_fil<(PI/2+t) && robot_orientation_fil>(PI/2-t)){
-                        rightcommand = high;
-                        leftcommand = high;
-                        GoalState = 15;
-                    }
-                }
-                
-                if (y_robot_position_fil<0 && y_robot_position_fil>-35) {
-                    if(robot_orientation_fil>PI && robot_orientation_fil<(2*PI)){
-                        rightcommand = high;
-                        leftcommand = low;
-                        GoalState = 4;
-                    }
-                    if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
-                        rightcommand = high;
-                        leftcommand = low;
-                        GoalState = 5;
-                    }
-                    
-                    if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
-                        rightcommand = low;
-                        leftcommand = high;
-                        
-                        GoalState = 6;
-                    }
-                    if(robot_orientation_fil<(PI/2+t) && robot_orientation_fil>(PI/2-t)){
-                        rightcommand = high;
-                        leftcommand = high;
-                        GoalState = 15;
-                    }
-                }
-                
-                if (y_robot_position_fil<-35) {
-                    if(robot_orientation_fil>PI && robot_orientation_fil<(3*PI/2)){
-                        rightcommand = low;
-                        leftcommand = high;
-                        GoalState = 7;
-                    }
-                    if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
-                        rightcommand = high;
-                        leftcommand = 0;
-                        GoalState = 8;
-                    }
-                    if(robot_orientation_fil>(3*PI/2) && robot_orientation_fil<(2*PI)){
-                        rightcommand = 0;
-                        leftcommand = high;
-                        GoalState = 9;
-                    }
-                    if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
-                        rightcommand = low;
-                        leftcommand = high;
-                        GoalState = 10;
-                    }
-                }
-                
-                if (y_robot_position_fil>35) {
-                    if(robot_orientation_fil>PI && robot_orientation_fil<(3*PI/2)){
-                        rightcommand = high;
-                        leftcommand = 0;
-                        GoalState = 11;
-                    }
-                    if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
-                        rightcommand = low;
-                        leftcommand = high;
-                        GoalState = 12;
-                    }
-                    if(robot_orientation_fil>(3*PI/2) && robot_orientation_fil<(2*PI)){
-                        rightcommand = high;
-                        leftcommand = low;
-                        GoalState = 13;
-                    }
-                    if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
-                        rightcommand = 0;
-                        leftcommand = high;
-                        GoalState = 14;
-                    }
-                }
-                
-               
-                right_motor(rightcommand);
-                left_motor(leftcommand);
                 
                 // if we lose the puck, go back to looking for it.
                 if (breakBeam > 900) {
@@ -1088,125 +999,102 @@ void findPuck(void) {
 
 void goScore(void) {
     
-//    if (y_robot_position_fil<35 && y_robot_position_fil>0) {
-//        if(robot_orientation_fil>PI && robot_orientation_fil<(2*PI)){
-//            GoalState = OppArcGoalHigh;
-//        }
-//        if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
-//            GoalState = OppArcGoalHigh;
-//        }
-//        
-//        if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
-//            GoalState = ToArcGoalHigh;
-//        }
-//        if(robot_orientation_fil<(PI/2+t) && robot_orientation_fil>(PI/2-t)){
-//            GoalState = Straight;
-//        }
-//    }
-//    
-//    if (y_robot_position_fil<0 && y_robot_position_fil>-35) {
-//        if(robot_orientation_fil>PI && robot_orientation_fil<(2*PI)){
-//            GoalState = OppArcGoalLow;
-//        }
-//        if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
-//            GoalState = OppArcGoalLow;
-//        }
-//        
-//        if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
-//            GoalState = ToArcGoalLow;
-//        }
-//        if(robot_orientation_fil<(PI/2+t) && robot_orientation_fil>(PI/2-t)){
-//            GoalState = Straight;
-//        }
-//    }
-//    
-//    if (y_robot_position_fil<-35) {
-//        if(robot_orientation_fil>PI && robot_orientation_fil<(3*PI/2)){
-//            GoalState = OppSpinEdgeLow;
-//        }
-//        if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
-//            GoalState = ToArcEdgeLow;
-//        }
-//        if(robot_orientation_fil>(3*PI/2) && robot_orientation_fil>0){
-//            GoalState = OppArcEdgeLow;
-//        }
-//        if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
-//            GoalState = ToSpinEdgeLow;
-//        }
-//    }
-//    
-//    if (y_robot_position_fil>35) {
-//        if(robot_orientation_fil>PI && robot_orientation_fil<(3*PI/2)){
-//            GoalState = OppArcEdgeHigh;
-//        }
-//        if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
-//            GoalState = ToSpinEdgeHigh;
-//        }
-//        if(robot_orientation_fil>(3*PI/2) && robot_orientation_fil>0){
-//            GoalState = OppSpinEdgeHigh;
-//        }
-//        if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
-//            GoalState = ToArcEdgeHigh;
-//        }
-//    }
-//    
-//    switch (GoalState) {
-//        case OppArcGoalHigh:
-//            rightcommand =10;
-//            leftcommand =20;
-//            break;
-//        case ToArcGoalHigh:
-//            rightcommand =20;
-//            leftcommand =10;
-//            break;
-//        case OppArcGoalLow:
-//            rightcommand = 20;
-//            leftcommand = 10;
-//            break;
-//        case ToArcGoalLow:
-//            rightcommand = 10;
-//            leftcommand = 20;
-//            break;
-//        case OppArcEdgeHigh:
-//            rightcommand = 10;
-//            leftcommand = 20;
-//            break;
-//        case ToArcEdgeHigh:
-//            rightcommand = 20;
-//            leftcommand = 10;
-//            break;
-//        case OppArcEdgeLow:
-//            rightcommand = 20;
-//            leftcommand = 10;
-//            break;
-//        case ToArcEdgeLow:
-//            rightcommand = 10;
-//            leftcommand = 20;
-//            break;
-//        case ToSpinEdgeLow:
-//            rightcommand = 0;
-//            leftcommand = 20;
-//            break;
-//        case OppSpinEdgeLow:
-//            rightcommand = 20;
-//            leftcommand = 0;
-//            break;
-//        case ToSpinEdgeHigh:
-//            rightcommand = 20;
-//            leftcommand = 0;
-//            break;
-//        case OppSpinEdgeHigh:
-//            rightcommand = 0;
-//            leftcommand = 20;
-//            break;
-//        case Straight:
-//            rightcommand = 30;
-//            leftcommand = 30;
-//            break;
-//        default:
-//            GoalState = Straight;
-//            break;
-//    }
+    if (y_robot_position_fil<35 && y_robot_position_fil>0) {
+        if(robot_orientation_fil>PI && robot_orientation_fil<(2*PI)){
+            GoalState = 1;
+            rightcommand = low;
+            leftcommand = high;
+        }
+        if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
+            GoalState = 2;
+            rightcommand = high;
+            leftcommand = low;
+        }
+        
+        if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
+            GoalState = 3;
+            rightcommand = low;
+            leftcommand = high;
+        }
+        if(robot_orientation_fil<(PI/2+t) && robot_orientation_fil>(PI/2-t)){
+            rightcommand = high;
+            leftcommand = high;
+            GoalState = 15;
+        }
+    }
+    
+    if (y_robot_position_fil<0 && y_robot_position_fil>-35) {
+        if(robot_orientation_fil>PI && robot_orientation_fil<(2*PI)){
+            rightcommand = high;
+            leftcommand = low;
+            GoalState = 4;
+        }
+        if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
+            rightcommand = high;
+            leftcommand = low;
+            GoalState = 5;
+        }
+        
+        if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
+            rightcommand = low;
+            leftcommand = high;
+            
+            GoalState = 6;
+        }
+        if(robot_orientation_fil<(PI/2+t) && robot_orientation_fil>(PI/2-t)){
+            rightcommand = high;
+            leftcommand = high;
+            GoalState = 15;
+        }
+    }
+    
+    if (y_robot_position_fil<-35) {
+        if(robot_orientation_fil>PI && robot_orientation_fil<(3*PI/2)){
+            rightcommand = low;
+            leftcommand = high;
+            GoalState = 7;
+        }
+        if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
+            rightcommand = high;
+            leftcommand = 0;
+            GoalState = 8;
+        }
+        if(robot_orientation_fil>(3*PI/2) && robot_orientation_fil<(2*PI)){
+            rightcommand = 0;
+            leftcommand = high;
+            GoalState = 9;
+        }
+        if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
+            rightcommand = low;
+            leftcommand = high;
+            GoalState = 10;
+        }
+    }
+    
+    if (y_robot_position_fil>35) {
+        if(robot_orientation_fil>PI && robot_orientation_fil<(3*PI/2)){
+            rightcommand = high;
+            leftcommand = 0;
+            GoalState = 11;
+        }
+        if(robot_orientation_fil<(PI/2-t) && robot_orientation_fil>0){
+            rightcommand = low;
+            leftcommand = high;
+            GoalState = 12;
+        }
+        if(robot_orientation_fil>(3*PI/2) && robot_orientation_fil<(2*PI)){
+            rightcommand = high;
+            leftcommand = low;
+            GoalState = 13;
+        }
+        if(robot_orientation_fil>(PI/2+t) && robot_orientation_fil<PI){
+            rightcommand = 0;
+            leftcommand = high;
+            GoalState = 14;
+        }
+    }
+    right_motor(rightcommand);
+    left_motor(leftcommand);
 
 }
 
@@ -1228,15 +1116,18 @@ void stall(void) {
         if(robot_orientation_fil>PI && robot_orientation_fil<(3*PI/2))
         {rightcommand = 0;
             leftcommand = -40;}
+        right_motor(rightcommand);
+        left_motor(leftcommand);
+        m_wait(200);
     }
     
     if(State == GoToGoal){
         leftcommand = 100;
-        rightcommand = 100;}
+        rightcommand = 100;
+        right_motor(rightcommand);
+        left_motor(leftcommand);
+        m_wait(200);}
     
-    right_motor(rightcommand);
-    left_motor(leftcommand);
-    m_wait(200);
 }
 
 void left_motor(int leftcommand){
@@ -1265,6 +1156,7 @@ void right_motor(int rightcommand){
 void commHandler(void) {
     m_rf_read(buffer,PACKET_LENGTH_READ);
     char CommState = buffer[0];
+    redblueswitch = 1;
     switch (CommState) {
         case COMM_TEST:
             red_LED(OFF);
