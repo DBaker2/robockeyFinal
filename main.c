@@ -13,7 +13,7 @@
 
 #define RX_ADDRESS 0x19 //Receipt address
 #define TX_ADDRESS 0x18 //Send address
-#define PACKET_LENGTH_SEND 10
+#define PACKET_LENGTH_SEND 3
 #define CHANNEL 1
 #define PACKET_LENGTH_READ 10
 #define PI 3.14
@@ -66,7 +66,7 @@
 
 
 char buffer[PACKET_LENGTH_READ] = {0,0,0,0,0,0,0,0,0,0}; //data to be received
-char send_data[PACKET_LENGTH_SEND] = {0,0,0,0,0,0,0,0,0,0}; // data to be sent to game controller
+char send_data[PACKET_LENGTH_SEND] = {0,0,0}; // data to be sent to game controller
 
 //Localisation variables
 volatile int State = Listen;
@@ -125,6 +125,8 @@ float t = .15;
 float robot_orientation_old;
 float robot_position_x_old;
 float robot_position_y_old;
+int maxchannel;
+int adcflag = 1;
 
 int stallcount;
 int stallup;
@@ -150,6 +152,7 @@ void green_LED(bool status);
 void findPuck(void);
 void goScore(void);
 void stall(void);
+void adcHandler(void);
 
 
 int main(void){
@@ -164,13 +167,15 @@ int main(void){
 //            m_usb_tx_string("\t");
 //            m_usb_tx_int((int)(robot_position[1])); //Y position
 //            m_usb_tx_string("\t");
-            m_usb_tx_int((int)State);
+
+            m_usb_tx_char((char)buffer[0]);
             m_usb_tx_string("\t");
             m_usb_tx_int((int)(robot_orientation_fil*127/6.3)); //Orientation converted from radians to a fraction of 127
             m_usb_tx_string("\t");
             m_usb_tx_int((int)x_robot_position_fil);
             m_usb_tx_string("\t");
             m_usb_tx_int((int)y_robot_position_fil);
+            m_usb_tx_int((int)maxchannel);
             m_usb_tx_string("\t");
             m_usb_tx_int((int)GoalState);
             m_usb_tx_string("\t");
@@ -183,12 +188,19 @@ int main(void){
             m_usb_tx_int((int)stallup);
             m_usb_tx_string("\t");
             m_usb_tx_string("\n");
+            m_usb_tx_int((int)State);
+            m_usb_tx_string("\t");
+        }
+        
+        if(adcflag){
+            adcHandler();
+            adcflag = 0;
         }
         
         if(send_flag == 1){
             
             stallcount++;
-            if(stallcount == 5){
+            if(stallcount == 9){
                 robot_orientation_old = robot_orientation;
                 robot_position_x_old = robot_position[0];
                 robot_position_y_old = robot_position[1];
@@ -231,8 +243,9 @@ int main(void){
         
         switch (State) { //** Necessary states for 11/24: 1 = Wait |  2 = drive to opposite side of rink
             case Listen: //Wait for PLAY command
+                
                 white_LED(OFF);
-                green_LED(OFF);
+                green_LED(ON);
                 // blink led to confirm which goal is selected (will only occur at startup)
                 if (check(PIND, PIN3) && goalSwitchBlink) {
                     red_LED(ON);
@@ -253,16 +266,7 @@ int main(void){
                     goalSwitchBlink = 0;
                     redblueswitch = 1;
                 }
-                if(m_port_check(m_port_ADDRESS,PORTG,PIN2) && redblueswitch) {
-                    red_LED(ON);
-                    blue_LED(OFF);
-                    redblueswitch = 0;
-                }
-                if(!m_port_check(m_port_ADDRESS,PORTG,PIN2) && redblueswitch) {
-                    blue_LED(ON);
-                    red_LED(OFF);
-                    redblueswitch = 0;
-                }
+
                 break;
                 
                 
@@ -548,7 +552,6 @@ void init(void) {
     
     // start conversion process
     set(ADCSRA,ADEN); //enable
-    set(ADCSRA,ADSC); //start conversion
     
     
     /////////////////////////// m_port register G to output //////////////////////
@@ -828,8 +831,131 @@ float dot(float v1[2], float v2[2]) {
     return result;
 }
 
-void findPuck(void) {
+void adcHandler(void) {
+    if (adcChannel == 0){
+        L1  = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
+        adcChannel++;
+        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
+        // Read from Pin F1 next
+        clear(ADCSRB,MUX5);
+        clear(ADMUX,MUX2);
+        clear(ADMUX,MUX1);
+        set(ADMUX,MUX0);
+        set(ADCSRA,ADIF);
+        
+    } else if (adcChannel == 1){
+        L2 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
+        adcChannel++;
+        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
+        // Read from Pin F4 next
+        clear(ADCSRB,MUX5);
+        set(ADMUX,MUX2);
+        clear(ADMUX,MUX1);
+        clear(ADMUX,MUX0);
+        set(ADCSRA,ADIF);
+        
+    } else if (adcChannel == 2){
+        L3 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
+        adcChannel++;
+        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
+        // Read from Pin F5 next
+        clear(ADCSRB,MUX5);
+        set(ADMUX,MUX2);
+        clear(ADMUX,MUX1);
+        set(ADMUX,MUX0);
+        set(ADCSRA,ADIF);
+        
+    } else if (adcChannel == 3){
+        L4 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
+        adcChannel++;
+        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
+        // Read from Pin F6 next
+        clear(ADCSRB,MUX5);
+        set(ADMUX,MUX2);
+        set(ADMUX,MUX1);
+        clear(ADMUX,MUX0);
+        set(ADCSRA,ADIF);
+        
+        
+    } else if (adcChannel == 4){
+        R1 = (ADC-adcoffset[7])*adcmultiplier[7];
+        adcChannel++;
+        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
+        // Read from Pin F7 next
+        clear(ADCSRB,MUX5);
+        set(ADMUX,MUX2);
+        set(ADMUX,MUX1);
+        set(ADMUX,MUX0);
+        set(ADCSRA,ADIF);
+        
+    } else if (adcChannel == 5){
+        R2 = (ADC-adcoffset[6])*adcmultiplier[6];
+        adcChannel++;
+        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
+        // Read from Pin D4 next
+        set(ADCSRB,MUX5);
+        clear(ADMUX,MUX2);
+        clear(ADMUX,MUX1);
+        clear(ADMUX,MUX0);
+        set(ADCSRA,ADIF);
+        
+    } else if (adcChannel == 6){
+        R3 = (ADC-adcoffset[5])*adcmultiplier[5];
+        adcChannel++;
+        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
+        // Read from Pin D6 next
+        set(ADCSRB,MUX5);
+        clear(ADMUX,MUX2);
+        clear(ADMUX,MUX1);
+        set(ADMUX,MUX0);
+        set(ADCSRA,ADIF);
+        
+    } else if (adcChannel == 7){
+        R4 = (ADC-adcoffset[4])*adcmultiplier[4];
+        adcChannel++;
+        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
+        // Read from Pin D7 next
+        set(ADCSRB,MUX5);
+        clear(ADMUX,MUX2);
+        set(ADMUX,MUX1);
+        clear(ADMUX,MUX0);
+        set(ADCSRA,ADIF);
+    }
+    else if (adcChannel == 8){
+        breakBeam = ADC;
+        adcChannel++;
+        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
+        // Read from Pin F0 next
+        clear(ADCSRB,MUX5);
+        clear(ADMUX,MUX2);
+        clear(ADMUX,MUX1);
+        clear(ADMUX,MUX0);
+        set(ADCSRA,ADIF);
+        adcChannel = 0;
+        dataFlag = 1;
+    }
+    
+    if (dataFlag){
+        ADCdata[0] = L1;
+        ADCdata[1] = L2;
+        ADCdata[2] = L3;
+        ADCdata[3] = L4;
+        ADCdata[4] = R4;
+        ADCdata[5] = R3;
+        ADCdata[6] = R2;
+        ADCdata[7] = R1;
+        ADCdata[8] = breakBeam;
+    }
+    dataFlag = 0;
+    // to allow conversions again
+    set(ADCSRA,ADEN);
+    set(ADCSRA,ADSC);
 
+}
+
+void findPuck(void) {
+    
+    set(ADCSRA,ADSC); //start conversion
     int maxchannel = 0;
     float maxADC = 0;
     int z = 0;
@@ -1097,10 +1223,6 @@ void stall(void) {
         leftcommand = 100;
         rightcommand = 100;}
     
-    if(State == Listen){
-        leftcommand = 0;
-        rightcommand = 0;}
-    
     right_motor(rightcommand);
     left_motor(leftcommand);
     m_wait(200);
@@ -1173,33 +1295,29 @@ ISR(TIMER1_OVF_vect) {
 ISR(INT2_vect){
     //red_LED(ON);
     m_rf_read(buffer,PACKET_LENGTH_READ);
-    
     char CommState = buffer[0];
     switch (CommState) {
         case COMM_TEST:
-            if (goal == RED) {
-                blue_LED(OFF);
-                red_LED(ON);
-                m_wait(100);
-                red_LED(OFF);
-                redblueswitch = 1;
-            } else {
-                red_LED(OFF);
-                blue_LED(ON);
-                m_wait(100);
-                blue_LED(OFF);
-                redblueswitch = 1;
-            }
+            red_LED(OFF);
+            blue_LED(OFF);
+            m_wait(100);
+            blue_LED(ON);
+            m_wait(100);
+            blue_LED(OFF);
+            redblueswitch = 1;
             break;
         case PLAY:
             State = PuckFind;
-//            if (goal == RED) {
-//                red_LED(ON);
-//                blue_LED(OFF);
-//            } else {
-//                blue_LED(ON);
-//                red_LED(OFF);
-//            }
+            if(m_port_check(m_port_ADDRESS,PORTG,PIN2) && redblueswitch) {
+                red_LED(ON);
+                blue_LED(OFF);
+                redblueswitch = 0;
+            }
+            if(!m_port_check(m_port_ADDRESS,PORTG,PIN2) && redblueswitch) {
+                blue_LED(ON);
+                red_LED(OFF);
+                redblueswitch = 0;
+            }
             break;
         case PAUSE:
             State = Listen;
@@ -1214,125 +1332,8 @@ ISR(INT2_vect){
 //ADC interrupt
 ISR(ADC_vect){
     //ADC Order = L1, L2, L3, L4, R4, R3, R2 ,R1
-    if (adcChannel == 0){
-        L1  = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
-        adcChannel++;
-        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
-        // Read from Pin F1 next
-        clear(ADCSRB,MUX5);
-        clear(ADMUX,MUX2);
-        clear(ADMUX,MUX1);
-        set(ADMUX,MUX0);
-        set(ADCSRA,ADIF);
-        
-    } else if (adcChannel == 1){
-        L2 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
-        adcChannel++;
-        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
-        // Read from Pin F4 next
-        clear(ADCSRB,MUX5);
-        set(ADMUX,MUX2);
-        clear(ADMUX,MUX1);
-        clear(ADMUX,MUX0);
-        set(ADCSRA,ADIF);
-        
-    } else if (adcChannel == 2){
-        L3 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
-        adcChannel++;
-        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
-        // Read from Pin F5 next
-        clear(ADCSRB,MUX5);
-        set(ADMUX,MUX2);
-        clear(ADMUX,MUX1);
-        set(ADMUX,MUX0);
-        set(ADCSRA,ADIF);
-        
-    } else if (adcChannel == 3){
-        L4 = (ADC-adcoffset[adcChannel])*adcmultiplier[adcChannel];
-        adcChannel++;
-        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
-        // Read from Pin F6 next
-        clear(ADCSRB,MUX5);
-        set(ADMUX,MUX2);
-        set(ADMUX,MUX1);
-        clear(ADMUX,MUX0);
-        set(ADCSRA,ADIF);
-        
-        
-    } else if (adcChannel == 4){
-        R1 = (ADC-adcoffset[7])*adcmultiplier[7];
-        adcChannel++;
-        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
-        // Read from Pin F7 next
-        clear(ADCSRB,MUX5);
-        set(ADMUX,MUX2);
-        set(ADMUX,MUX1);
-        set(ADMUX,MUX0);
-        set(ADCSRA,ADIF);
-        
-    } else if (adcChannel == 5){
-        R2 = (ADC-adcoffset[6])*adcmultiplier[6];
-        adcChannel++;
-        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
-        // Read from Pin D4 next
-        set(ADCSRB,MUX5);
-        clear(ADMUX,MUX2);
-        clear(ADMUX,MUX1);
-        clear(ADMUX,MUX0);
-        set(ADCSRA,ADIF);
-        
-    } else if (adcChannel == 6){
-        R3 = (ADC-adcoffset[5])*adcmultiplier[5];
-        adcChannel++;
-        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
-        // Read from Pin D6 next
-        set(ADCSRB,MUX5);
-        clear(ADMUX,MUX2);
-        clear(ADMUX,MUX1);
-        set(ADMUX,MUX0);
-        set(ADCSRA,ADIF);
-        
-    } else if (adcChannel == 7){
-        R4 = (ADC-adcoffset[4])*adcmultiplier[4];
-        adcChannel++;
-        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
-        // Read from Pin D7 next
-        set(ADCSRB,MUX5);
-        clear(ADMUX,MUX2);
-        set(ADMUX,MUX1);
-        clear(ADMUX,MUX0);
-        set(ADCSRA,ADIF);
+    adcflag = 1;
     }
-    else if (adcChannel == 8){
-        breakBeam = ADC;
-        adcChannel++;
-        clear(ADCSRA,ADEN);     // ADC must be disabled when switching channels
-        // Read from Pin F0 next
-        clear(ADCSRB,MUX5);
-        clear(ADMUX,MUX2);
-        clear(ADMUX,MUX1);
-        clear(ADMUX,MUX0);
-        set(ADCSRA,ADIF);
-        adcChannel = 0;
-        dataFlag = 1;
-    }
-    
-    if (dataFlag){
-        ADCdata[0] = L1;
-        ADCdata[1] = L2;
-        ADCdata[2] = L3;
-        ADCdata[3] = L4;
-        ADCdata[4] = R4;
-        ADCdata[5] = R3;
-        ADCdata[6] = R2;
-        ADCdata[7] = R1;
-        ADCdata[8] = breakBeam;
-    }
-    dataFlag = 0;
-    // to allow conversions again
-    set(ADCSRA,ADEN);
-    set(ADCSRA,ADSC);
-}
 
 //// Useful Blocks of code
 //
@@ -1452,29 +1453,7 @@ ISR(ADC_vect){
 //        }
 //    }
 
-// m_usb_tx_string("L1 = ");
-//       m_usb_tx_int(L1);
-//       m_usb_tx_string("  ");
-//       m_usb_tx_string(" L2= ");
-//       m_usb_tx_int(L2);
-//       m_usb_tx_string("  L3 = ");
-//       m_usb_tx_int(L3);
-//       m_usb_tx_string("  ");
-//       m_usb_tx_string(" L4 = ");
-//       m_usb_tx_int(L4);
-//       m_usb_tx_string("  ");
-//       m_usb_tx_string(" R1 = ");
-//       m_usb_tx_int(R1);
-//       m_usb_tx_string("  ");
-//       m_usb_tx_string(" R2 = ");
-//       m_usb_tx_int(R2);
-//       m_usb_tx_string("  ");
-//       m_usb_tx_string(" R3 = ");
-//       m_usb_tx_int(R3);
-//       m_usb_tx_string("  ");
-//       m_usb_tx_string(" R4 = ");
-//       m_usb_tx_int(R4);
-//       m_usb_tx_string("\n");
+
 
 //
 //m_usb_tx_string("L1 = ");
@@ -1637,3 +1616,27 @@ ISR(ADC_vect){
 //        State=Qualify;
 //    }
 //    break;
+
+//m_usb_tx_string("L1 = ");
+//m_usb_tx_int(L1);
+//m_usb_tx_string("  ");
+//m_usb_tx_string(" L2= ");
+//m_usb_tx_int(L2);
+//m_usb_tx_string("  L3 = ");
+//m_usb_tx_int(L3);
+//m_usb_tx_string("  ");
+//m_usb_tx_string(" L4 = ");
+//m_usb_tx_int(L4);
+//m_usb_tx_string("  ");
+//m_usb_tx_string(" R1 = ");
+//m_usb_tx_int(R1);
+//m_usb_tx_string("  ");
+//m_usb_tx_string(" R2 = ");
+//m_usb_tx_int(R2);
+//m_usb_tx_string("  ");
+//m_usb_tx_string(" R3 = ");
+//m_usb_tx_int(R3);
+//m_usb_tx_string("  ");
+//m_usb_tx_string(" R4 = ");
+//m_usb_tx_int(R4);
+//m_usb_tx_string("\n");
