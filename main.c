@@ -68,6 +68,8 @@
 #define vlow 18
 #define med 60
 
+#define edge 30 //For stall cases - defines the edge of the rink in y direction
+
 
 char buffer[PACKET_LENGTH_READ] = {0,0,0,0,0,0,0,0,0,0}; //data to be received
 char send_data[PACKET_LENGTH_SEND] = {0,0,0}; // data to be sent to game controller
@@ -133,9 +135,12 @@ int maxchannel;
 int adcflag = 1;
 char rf_counter = 0;
 bool commFlag = 0;
+int stop = 0;
 
 
 int stallcount;
+int stallflag;
+int stallreset = 0;
 int stallup;
 int gtgstall;
 int redblueswitch = 1;
@@ -177,42 +182,49 @@ int main(void){
             m_rf_open(CHANNEL, RX_ADDRESS, PACKET_LENGTH_READ);
         }
         if (m_usb_isconnected()) {
-            //            m_usb_tx_int((int)(robot_position[0])); //X position, whatever that means
-            //            m_usb_tx_string("\t");
-            //            m_usb_tx_int((int)robot_position[1]); //Y position
-            //            m_usb_tx_string("\t");
-            //            m_usb_tx_int((int)(robot_orientation*127/6.3)); //Y position
-            //            m_usb_tx_string("\t");
-            //            m_usb_tx_int((int)(x_robot_position_fil)); //X position, whatever that means
-            //            m_usb_tx_string("\t");
-            //            m_usb_tx_int((int)(y_robot_position_fil)); //Y position
-            //            m_usb_tx_string("\t");
-            //            m_usb_tx_int((int)(robot_orientation_fil*127/6.3)); //Y position
-            //            m_usb_tx_string("\t");
+            //                        m_usb_tx_int((int)(robot_position[0])); //X position, whatever that means
+            //                        m_usb_tx_string("\t");
+            //                        m_usb_tx_int((int)robot_position[1]); //Y position
+            //                        m_usb_tx_string("\t");
+            //                        m_usb_tx_int((int)(robot_orientation*127/6.3)); //Y position
+            //                        m_usb_tx_string("\t");
+            m_usb_tx_int((int)(x_robot_position_fil)); //X position, whatever that means
+            m_usb_tx_string("\t");
+            m_usb_tx_int((int)(y_robot_position_fil)); //Y position
+            m_usb_tx_string("\t");
+            m_usb_tx_int((int)(robot_orientation_fil*127/6.3)); //Y position
+            m_usb_tx_string("\t");
+            m_usb_tx_int((int)(stallup)); //X position, whatever that means
+            m_usb_tx_string("\t");
+            m_usb_tx_int((int)(stallflag)); //Y position
+            m_usb_tx_string("\t");
+            m_usb_tx_int((int)(robot_orientation_fil*127/6.3)); //Y position
+            m_usb_tx_string("\t");
             
-            m_usb_tx_string("L1=");
-            m_usb_tx_int(L1);
-            m_usb_tx_string("  ");
-            m_usb_tx_string("L2=");
-            m_usb_tx_int(L2);
-            m_usb_tx_string("L3 =");
-            m_usb_tx_int(L3);
-            m_usb_tx_string("  ");
-            m_usb_tx_string("L4 =");
-            m_usb_tx_int(L4);
-            m_usb_tx_string("  ");
-            m_usb_tx_string("R1=");
-            m_usb_tx_int(R1);
-            m_usb_tx_string("  ");
-            m_usb_tx_string("R2 =");
-            m_usb_tx_int(R2);
-            m_usb_tx_string("  ");
-            m_usb_tx_string("R3 =");
-            m_usb_tx_int(R3);
-            m_usb_tx_string("  ");
-            m_usb_tx_string("R4 =");
-            m_usb_tx_int(R4);
-            m_usb_tx_string("  ");
+            
+            //            m_usb_tx_string("L1=");
+            //            m_usb_tx_int(L1);
+            //            m_usb_tx_string("  ");
+            //            m_usb_tx_string("L2=");
+            //            m_usb_tx_int(L2);
+            //            m_usb_tx_string("L3 =");
+            //            m_usb_tx_int(L3);
+            //            m_usb_tx_string("  ");
+            //            m_usb_tx_string("L4 =");
+            //            m_usb_tx_int(L4);
+            //            m_usb_tx_string("  ");
+            //            m_usb_tx_string("R1=");
+            //            m_usb_tx_int(R1);
+            //            m_usb_tx_string("  ");
+            //            m_usb_tx_string("R2 =");
+            //            m_usb_tx_int(R2);
+            //            m_usb_tx_string("  ");
+            //            m_usb_tx_string("R3 =");
+            //            m_usb_tx_int(R3);
+            //            m_usb_tx_string("  ");
+            //            m_usb_tx_string("R4 =");
+            //            m_usb_tx_int(R4);
+            //            m_usb_tx_string("  ");
             m_usb_tx_int(leftcommand);
             m_usb_tx_string("  ");
             m_usb_tx_int(rightcommand);
@@ -230,10 +242,19 @@ int main(void){
             adcflag = 0;
         }
         
-        if(send_flag == 1){
+        if(send_flag == 1){ //10hz
             
-            //            stallcount++;
-            if(stallcount == 9){
+            if(rightcommand == 0 && leftcommand == 0){ // If the motors are intentionally at 0 duty cycle, dont run stall case
+                stop = 1;
+            }
+            else{stop = 0;}
+            
+            
+            stallcount++; //counts 0-5, we store orientation at 5 and compare it with what we get at stallcount =4 next loop around
+            stallreset++; //Counts up to 25, if we have moved at all during that count, resets to 0 and sets stallup =0
+            //stallflag is 1 when we havent moved in 2.5 seconds, 0 when we have
+            //I am implementing this in "if" cases in GoToGoal and PuckFind
+            if(stallcount == 5){
                 robot_orientation_old = robot_orientation;
                 robot_position_x_old = robot_position[0];
                 robot_position_y_old = robot_position[1];
@@ -241,14 +262,29 @@ int main(void){
             }
             
             
-            if(stallcount == 8 && abs(robot_position_x_old - robot_position[0])<3 && abs(robot_position_y_old-robot_position[1])<3) {
+            if(stallcount == 4 && abs(robot_position_x_old - robot_position[0])<3 && abs(robot_position_y_old-robot_position[1])<3) {
                 stallup++;
             }
             
-            if(stallup>=5){
-                stall();
+            if(stallreset >= 30 && stallup<5)
+            {
+                stallup =0;
+                stallreset = 0;
+                stallflag = 0;
+            }
+            
+            if(stop){
+                stallup =0;
+                stallreset = 0;
+                stallflag = 0;
+            }
+            
+            if(stallup>=5 && !stop){
+                stallflag = 1;
+                stallreset = 0;
                 stallup = 0;
             }
+            
             
             
             m_wii_read(star_data);
@@ -299,21 +335,58 @@ int main(void){
                     goal = BLUE;
                     goalSwitchBlink = 0;
                 }
-                State = Listen;
+                State = PuckFind;
                 break;
                 
             case PuckFind:
                 //Transition to: Play Command, Puck Lost, Team Lost Puck, Puck Shot
                 //Transition from: Got the Puck, Team has Puck
-                
                 white_LED(OFF);
                 green_LED(OFF);
                 yellow_LED(ON);
                 findPuck();
-                rightcommand = (puckdirr);
-                leftcommand = (puckdirl);
-                left_motor(leftcommand);
-                right_motor(rightcommand);
+                
+                if(stallflag) //If in stall case do some stuff
+                {
+                    if (robot_orientation_fil<=(PI) && robot_orientation_fil>=0){ //Oriented at opponent goal
+                        
+                        if (robot_orientation_fil>PI/2 && robot_orientation_fil<=(PI) &&
+                            y_robot_position_fil<=-edge) { //take a step back and hit the puck as hard as you can
+                            //This side definitely works. Yet to see how helpful it will be
+                            rightcommand = -30;
+                            leftcommand = 100;
+                        }
+                        if (robot_orientation_fil>PI/2 && robot_orientation_fil<=(PI) &&y_robot_position_fil>edge) {
+                            rightcommand = 100; //Less sure about this
+                            leftcommand = 100;
+                        }
+                        if (robot_orientation_fil>0 && robot_orientation_fil<=(PI/2) &&y_robot_position_fil<=-edge) {
+                            rightcommand = 100;
+                            leftcommand = 100;
+                        }
+                        if (robot_orientation_fil>0 && robot_orientation_fil<=(PI/2) &&y_robot_position_fil>edge) { //Not sure about this, probably not getting far enough over
+                            rightcommand = 100;
+                            leftcommand = -30;
+                        }
+                        if (y_robot_position_fil<=edge && y_robot_position_fil>-edge && x_robot_position_fil>-100) {
+                            rightcommand = 100;
+                            leftcommand = 100;
+                        }
+                        right_motor(rightcommand);
+                        left_motor(leftcommand);
+                    }
+                    else{rightcommand = (puckdirr); //If facing towards our goal/ not in one of above cases, behave as normal
+                        leftcommand = (puckdirl);
+                        left_motor(leftcommand);
+                        right_motor(rightcommand);}
+                }
+                
+                if (!stallflag) {
+                    rightcommand = (puckdirr);
+                    leftcommand = (puckdirl);
+                    left_motor(leftcommand);
+                    right_motor(rightcommand);
+                }
                 break;
                 
             case GoToGoal:
@@ -325,8 +398,30 @@ int main(void){
                 white_LED(ON);
                 green_LED(OFF);
                 yellow_LED(OFF);
-                goScore();
                 
+                if (stallflag) { //This stall case never activates the 100%duty cycle part
+                    if(robot_orientation_fil>=0 && robot_orientation_fil<=PI){ //If pointing at target goal, burn some rubber
+                        if(y_robot_position_fil<=edge && y_robot_position_fil>=(-edge)){
+                            rightcommand = 100;
+                            leftcommand = 100;
+                        }
+                        if(y_robot_position_fil>edge || y_robot_position_fil<(-edge)){ //If stalling against the wall, back up.
+                            rightcommand = -40;
+                            leftcommand = -40;
+                        }
+                        else {
+                            goScore();
+                        }
+                        
+                        right_motor(rightcommand);
+                        left_motor(leftcommand);
+                        
+                    }
+                }
+                
+                if (!stallflag) {
+                    goScore();
+                }
                 
                 // if we lose the puck, go back to looking for it.
                 if (breakBeam > 900) {
@@ -908,10 +1003,10 @@ void findPuck(void) {
         if (ADCdata[0]<700 || ADCdata[7]<700){
             maxchannel = FORWARD;
         }
-            
-            if (abs(ADCdata[0] - ADCdata[7]) < 100) {
-                maxchannel = FORWARD;
-            }
+        
+        if (abs(ADCdata[0] - ADCdata[7]) < 100) {
+            maxchannel = FORWARD;
+        }
     }
     
     if (maxADC<100)
@@ -995,7 +1090,7 @@ void findPuck(void) {
 void goScore(void) {
     
     if (y_robot_position_fil<=25 && y_robot_position_fil>0) {
-
+        
         if(robot_orientation_fil>PI && robot_orientation_fil<=(3*PI/2)){
             GoalState = 1;
             rightcommand = low;
