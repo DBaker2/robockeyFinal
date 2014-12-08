@@ -2,7 +2,7 @@
  * Author: Ben Weinreb
  * Copyright: Localisation Testing
  * License: November 2014
- */
+ */ ///// NEWER
 
 #include "m_general.h"
 #include "m_bus.h"
@@ -11,8 +11,14 @@
 #include "m_usb.h"
 #include "m_port.h"
 
-#define RX_ADDRESS 0x19 //Receipt address
-#define TX_ADDRESS 0x18 //Send address
+// CHANGE FOR EACH BOT
+// BUMBLEBEE 0x18
+// AQUAMAN = 0x19
+// JON = 0x1A
+
+#define RX_ADDRESS 0x18 //Receipt address
+
+//#define TX_ADDRESS 0x18 //Send address
 #define PACKET_LENGTH_SEND 3
 #define CHANNEL 1
 #define PACKET_LENGTH_READ 10
@@ -35,6 +41,10 @@
 #define PLAY -95
 #define PAUSE -92
 #define COMM_TEST -96
+#define HALF_TIME -90
+#define GOAL_B -93
+#define GOAL_R -94
+#define GAME_OVER -89
 
 
 //Trajectory planning States
@@ -308,7 +318,7 @@ int main(void){
                 send_data[0] = (char)robot_position[0];//TX_ADDRESS;
                 send_data[1] = (char)robot_position[1];
                 send_data[2] = (char)(robot_orientation*127/6.3);
-                m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND); //Code for sending star data in footnote
+                //m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND); //Code for sending star data in footnote
             }
             send_flag = 0;
        	}
@@ -322,6 +332,8 @@ int main(void){
                 white_LED(OFF);
                 yellow_LED(OFF);
                 green_LED(ON);
+                red_LED(OFF);
+                blue_LED(OFF);
                 
                 //                 blink led to confirm which goal is selected (will only occur at startup)
                 if (check(PIND, PIN3) && goalSwitchBlink) {
@@ -329,13 +341,17 @@ int main(void){
                     OppGoalSign = -1;
                     goal = RED;
                     goalSwitchBlink = 0;
+                    m_wait(100);
+                    red_LED(OFF);
                 } else if (!check(PIND, PIN3) && goalSwitchBlink) {
                     blue_LED(ON);
                     OppGoalSign = 1;
                     goal = BLUE;
                     goalSwitchBlink = 0;
+                    m_wait(100);
+                    blue_LED(OFF);
                 }
-                State = PuckFind;
+                State = Listen;
                 break;
                 
             case PuckFind:
@@ -1282,29 +1298,39 @@ void commHandler(void) {
     redblueswitch = 1;
     switch (CommState) {
         case COMM_TEST:
-            red_LED(OFF);
-            blue_LED(OFF);
-            m_wait(100);
-            blue_LED(ON);
-            m_wait(100);
-            blue_LED(OFF);
+            if(buffer[9]=='R'){
+                blue_LED(OFF);
+                red_LED(ON);
+                m_wait(200);
+                red_LED(OFF);
+            } else if(buffer[9]=='B'){
+                red_LED(OFF);
+                blue_LED(ON);
+                m_wait(200);
+                blue_LED(OFF);
+            }
             redblueswitch = 1;
             break;
         case PLAY:
             State = PuckFind;
-            blue_LED(ON);
-            //            if(m_port_check(m_port_ADDRESS,PORTG,PIN2) && redblueswitch) {
-            //                red_LED(ON);
-            //                blue_LED(OFF);
-            //                redblueswitch = 0;
-            //            }
-            //            if(!m_port_check(m_port_ADDRESS,PORTG,PIN2) && redblueswitch) {
-            //                blue_LED(ON);
-            //                red_LED(OFF);
-            //                redblueswitch = 0;
-            //            }
+            if(buffer[9]=='R'){
+                blue_LED(OFF);
+                red_LED(ON);
+            } else if(buffer[9]=='B'){
+                red_LED(OFF);
+                blue_LED(ON);
+            }
             break;
         case PAUSE:
+            State = Listen;
+            break;
+        case HALF_TIME:
+            State = Listen;
+            break;
+        case GOAL_R:
+            State = Listen;
+            break;
+        case GOAL_B:
             State = Listen;
             break;
         default:
