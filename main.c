@@ -59,11 +59,11 @@
 #define FORWARD 8
 #define POSSESSPUCK 10
 
-#define low 40
-#define high 100
-#define plow 30
-#define phigh 100
-#define pvlow 15
+#define low 20
+#define high 30
+#define plow 20
+#define phigh 30
+#define pvlow 20
 
 
 
@@ -122,7 +122,7 @@ float robot_orientation_dir;
 float robot_orientation_fil = 0;
 float x_robot_position_fil;
 float y_robot_position_fil;
-int OppGoalSign=-1;
+int OppGoalSign= 1;
 float t = .15;
 float robot_orientation_old;
 float robot_position_x_old;
@@ -174,11 +174,17 @@ int main(void){
             m_rf_open(CHANNEL, RX_ADDRESS, PACKET_LENGTH_READ);
         }
         if (m_usb_isconnected()) {
+            m_usb_tx_int((int)(robot_position[0])); //X position, whatever that means
+            m_usb_tx_string("\t");
+            m_usb_tx_int((int)robot_position[1]); //Y position
+            m_usb_tx_string("\t");
+            m_usb_tx_int((int)(robot_orientation*127/6.3)); //Y position
+            m_usb_tx_string("\t");
             m_usb_tx_int((int)(x_robot_position_fil)); //X position, whatever that means
             m_usb_tx_string("\t");
-            m_usb_tx_int((int)y_robot_position_fil); //Y position
+            m_usb_tx_int((int)(y_robot_position_fil)); //Y position
             m_usb_tx_string("\t");
-            m_usb_tx_int((int)robot_orientation_fil); //Y position
+            m_usb_tx_int((int)(robot_orientation_fil*127/6.3)); //Y position
             m_usb_tx_string("\t");
             
 //            m_usb_tx_string("L1=");
@@ -242,21 +248,25 @@ int main(void){
             
             m_wii_read(star_data);
             find_position(star_data);
+
+            robot_orientation_fil = robot_orientation;
+            x_robot_position_fil = robot_position[0];
+            y_robot_position_fil = robot_position[1];
             
-            if(OppGoalSign==-1){ //Reverses the orientation of the robot depending on defended goal so that opponent goal is always at PI/2
-                robot_orientation_dir = robot_orientation;}
-            if(OppGoalSign==1){
-                if (robot_orientation>0 && robot_orientation<PI){
-                robot_orientation_dir = robot_orientation + PI;}
-                if (robot_orientation>PI && robot_orientation<(2*PI)) {
-                    robot_orientation_dir = robot_orientation - PI;
-                }
-            }
-            
-            
-            robot_orientation_fil = .9*robot_orientation_fil+.1*robot_orientation_dir;
-            x_robot_position_fil = robot_position[0]*OppGoalSign; //Our goal is always the positive side
-            y_robot_position_fil = robot_position[1]*OppGoalSign; //The left of the rink from our perspective is always negative
+//            if(OppGoalSign==-1){ //Reverses the orientation of the robot depending on defended goal so that opponent goal is always at PI/2
+//                robot_orientation_dir = robot_orientation;}
+//            if(OppGoalSign==1){
+//                if (robot_orientation>0 && robot_orientation<PI){
+//                robot_orientation_dir = robot_orientation + PI;}
+//                if (robot_orientation>PI && robot_orientation<(2*PI)) {
+//                    robot_orientation_dir = robot_orientation - PI;
+//                }
+//            }
+//            
+//            
+//            robot_orientation_fil = 0*robot_orientation_fil+1*robot_orientation_dir;
+//            x_robot_position_fil = robot_position[0]*-1*OppGoalSign; //Our goal is always the positive side
+//            y_robot_position_fil = robot_position[1]*-1*OppGoalSign; //The left of the rink from our perspective is always negative
             if (1) {
                 send_data[0] = (char)robot_position[0];//TX_ADDRESS;
                 send_data[1] = (char)robot_position[1];
@@ -291,9 +301,8 @@ int main(void){
                     goalSwitchBlink = 0;
                     redblueswitch = 1;
                 }
-
+                State = GoToGoal;
                 break;
-                
                 
             case PuckFind:
                 //Transition to: Play Command, Puck Lost, Team Lost Puck, Puck Shot
@@ -906,77 +915,76 @@ void findPuck(void) {
     
     if (maxADC<100)
     {maxchannel = 8;}
-    if (x_robot_position_fil<=-70) {
-        switch (maxchannel) {
-        case 0:
-            puckdirr= pvlow;
-            puckdirl = -pvlow;
-            lastPin = PIN0;
-            //pindirection = 0;
-            break;
-        case 1:
-            puckdirr = pvlow;
-            puckdirl= -pvlow;
-            lastPin = PIN1;
-            //pindirection = 1;
-            break;
-        case 2:
-            puckdirr = pvlow;
-            puckdirl= -pvlow;
-            lastPin = PIN2;
-            //pindirection = 2;
-            break;
-        case 3:
-            puckdirr = pvlow;
-            puckdirl= -pvlow;
-            lastPin = PIN3;
-            //pindirection = 3;
-            break;
-        case 4:
-            puckdirr = pvlow;
-            puckdirl= -pvlow;
-            lastPin = PIN4;
-            //pindirection = 4;
-            break;
-        case 5:
-            puckdirr = -pvlow;
-            puckdirl= pvlow;
-            lastPin = PIN5;
-            //pindirection = 5;
-            break;
-        case 6:
-            puckdirr = -pvlow;
-            puckdirl= pvlow;
-            lastPin = PIN6;
-            //pindirection = 6;
-            break;
-        case 7:
-            puckdirr = -pvlow;
-            puckdirl= pvlow;
-            lastPin = PIN7;
-            //pindirection = 7;
-            break;
-            
-        case FORWARD:
-            puckdirr = -pvlow;
-            puckdirl= pvlow;
-            break;
-            
-        case 9:
-            puckdirr = pvlow;
-            puckdirl= -pvlow;
-            //pindirection = 8;
-            break;
-        case POSSESSPUCK:
-            //  if you've got the puck, get out of this function and go score a fucking goal!!!
-            break;
-        default:
-            break;
-    }
-    }
-        if(x_robot_position_fil>-70)
-        {
-            switch (maxchannel) {
+//    if (x_robot_position_fil<=-70) {
+//        switch (maxchannel) {
+//        case 0:
+//            puckdirr= pvlow;
+//            puckdirl = -pvlow;
+//            lastPin = PIN0;
+//            //pindirection = 0;
+//            break;
+//        case 1:
+//            puckdirr = pvlow;
+//            puckdirl= -pvlow;
+//            lastPin = PIN1;
+//            //pindirection = 1;
+//            break;
+//        case 2:
+//            puckdirr = pvlow;
+//            puckdirl= -pvlow;
+//            lastPin = PIN2;
+//            //pindirection = 2;
+//            break;
+//        case 3:
+//            puckdirr = pvlow;
+//            puckdirl= -pvlow;
+//            lastPin = PIN3;
+//            //pindirection = 3;
+//            break;
+//        case 4:
+//            puckdirr = pvlow;
+//            puckdirl= -pvlow;
+//            lastPin = PIN4;
+//            //pindirection = 4;
+//            break;
+//        case 5:
+//            puckdirr = -pvlow;
+//            puckdirl= pvlow;
+//            lastPin = PIN5;
+//            //pindirection = 5;
+//            break;
+//        case 6:
+//            puckdirr = -pvlow;
+//            puckdirl= pvlow;
+//            lastPin = PIN6;
+//            //pindirection = 6;
+//            break;
+//        case 7:
+//            puckdirr = -pvlow;
+//            puckdirl= pvlow;
+//            lastPin = PIN7;
+//            //pindirection = 7;
+//            break;
+//            
+//        case FORWARD:
+//            puckdirr = -pvlow;
+//            puckdirl= pvlow;
+//            break;
+//            
+//        case 9:
+//            puckdirr = pvlow;
+//            puckdirl= -pvlow;
+//            //pindirection = 8;
+//            break;
+//        case POSSESSPUCK:
+//            //  if you've got the puck, get out of this function and go score a fucking goal!!!
+//            break;
+//        default:
+//            break;
+//    }
+//    }
+
+                switch (maxchannel) {
                 case 0:
                     puckdirr= plow;
                     puckdirl = -plow;
@@ -1027,7 +1035,7 @@ void findPuck(void) {
                     break;
                     
                 case FORWARD:
-                    puckdirr = -plow;
+                    puckdirr = plow;
                     puckdirl= plow;
                     break;
                     
@@ -1041,7 +1049,7 @@ void findPuck(void) {
                     break;
                 default:
                     break;
-        }
+        
     }
 }
 
