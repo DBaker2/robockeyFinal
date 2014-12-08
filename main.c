@@ -252,24 +252,20 @@ int main(void){
             m_wii_read(star_data);
             find_position(star_data);
             
-            robot_orientation_fil = robot_orientation;
-            x_robot_position_fil = robot_position[0];
-            y_robot_position_fil = robot_position[1];
+            if(OppGoalSign==1){ //Reverses the orientation of the robot depending on defended goal so that opponent goal is always at PI/2
+                robot_orientation_dir = robot_orientation;}
+            if(OppGoalSign==-1){
+                if (robot_orientation>0 && robot_orientation<PI){
+                    robot_orientation_dir = robot_orientation + PI;}
+                if (robot_orientation>PI && robot_orientation<(2*PI)) {
+                    robot_orientation_dir = robot_orientation - PI;
+                }
+            }
             
-            //            if(OppGoalSign==1){ //Reverses the orientation of the robot depending on defended goal so that opponent goal is always at PI/2
-            //                robot_orientation_dir = robot_orientation;}
-            //            if(OppGoalSign==-1){
-            //                if (robot_orientation>0 && robot_orientation<PI){
-            //                robot_orientation_dir = robot_orientation + PI;}
-            //                if (robot_orientation>PI && robot_orientation<(2*PI)) {
-            //                    robot_orientation_dir = robot_orientation - PI;
-            //                }
-            //            }
-            //
-            //
-            //            robot_orientation_fil = 0*robot_orientation_fil+1*robot_orientation_dir;
-            //            x_robot_position_fil = robot_position[0]*-1*OppGoalSign; //Our goal is always the positive side
-            //            y_robot_position_fil = robot_position[1]*-1*OppGoalSign; //The left of the rink from our perspective is always negative
+            
+            robot_orientation_fil = robot_orientation_dir;
+            x_robot_position_fil = robot_position[0]*OppGoalSign; //Our goal is always the positive side
+            y_robot_position_fil = robot_position[1]*OppGoalSign; //The left of the rink from our perspective is always negative
             if (1) {
                 send_data[0] = (char)robot_position[0];//TX_ADDRESS;
                 send_data[1] = (char)robot_position[1];
@@ -288,21 +284,20 @@ int main(void){
                 white_LED(OFF);
                 yellow_LED(OFF);
                 green_LED(ON);
-                red_LED(OFF);
-                blue_LED(OFF);
+                
                 //                 blink led to confirm which goal is selected (will only occur at startup)
                 if (check(PIND, PIN3) && goalSwitchBlink) {
-                    //red_LED(ON);
+                    red_LED(ON);
                     OppGoalSign = -1;
                     goal = RED;
                     goalSwitchBlink = 0;
                 } else if (!check(PIND, PIN3) && goalSwitchBlink) {
-                    //blue_LED(ON);
+                    blue_LED(ON);
                     OppGoalSign = 1;
                     goal = BLUE;
                     goalSwitchBlink = 0;
                 }
-                State = PuckFind;
+                State = Listen;
                 break;
                 
             case PuckFind:
