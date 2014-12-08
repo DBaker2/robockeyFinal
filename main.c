@@ -61,9 +61,10 @@
 
 #define low 40
 #define high 90
-#define plow 30
+#define plow 40
 #define phigh 50
 #define pvlow 30
+#define pvhigh 80
 #define vlow 18
 #define med 60
 
@@ -171,52 +172,53 @@ int main(void){
     
     while(TRUE) {
         // fiene said this might fix our rf problems
-        if (rf_counter >  30) {
+        if (rf_counter >  20) {
             rf_counter = 0;
             m_rf_open(CHANNEL, RX_ADDRESS, PACKET_LENGTH_READ);
         }
         if (m_usb_isconnected()) {
-            m_usb_tx_int((int)(robot_position[0])); //X position, whatever that means
-            m_usb_tx_string("\t");
-            m_usb_tx_int((int)robot_position[1]); //Y position
-            m_usb_tx_string("\t");
-            m_usb_tx_int((int)(robot_orientation*127/6.3)); //Y position
-            m_usb_tx_string("\t");
-            m_usb_tx_int((int)(x_robot_position_fil)); //X position, whatever that means
-            m_usb_tx_string("\t");
-            m_usb_tx_int((int)(y_robot_position_fil)); //Y position
-            m_usb_tx_string("\t");
-            m_usb_tx_int((int)(robot_orientation_fil*127/6.3)); //Y position
-            m_usb_tx_string("\t");
+            //            m_usb_tx_int((int)(robot_position[0])); //X position, whatever that means
+            //            m_usb_tx_string("\t");
+            //            m_usb_tx_int((int)robot_position[1]); //Y position
+            //            m_usb_tx_string("\t");
+            //            m_usb_tx_int((int)(robot_orientation*127/6.3)); //Y position
+            //            m_usb_tx_string("\t");
+            //            m_usb_tx_int((int)(x_robot_position_fil)); //X position, whatever that means
+            //            m_usb_tx_string("\t");
+            //            m_usb_tx_int((int)(y_robot_position_fil)); //Y position
+            //            m_usb_tx_string("\t");
+            //            m_usb_tx_int((int)(robot_orientation_fil*127/6.3)); //Y position
+            //            m_usb_tx_string("\t");
             
-            //            m_usb_tx_string("L1=");
-            //            m_usb_tx_int(L1);
-            //            m_usb_tx_string("  ");
-            //            m_usb_tx_string("L2=");
-            //            m_usb_tx_int(L2);
-            //            m_usb_tx_string("L3 =");
-            //            m_usb_tx_int(L3);
-            //            m_usb_tx_string("  ");
-            //            m_usb_tx_string("L4 =");
-            //            m_usb_tx_int(L4);
-            //            m_usb_tx_string("  ");
-            //            m_usb_tx_string("R1=");
-            //            m_usb_tx_int(R1);
-            //            m_usb_tx_string("  ");
-            //            m_usb_tx_string("R2 =");
-            //            m_usb_tx_int(R2);
-            //            m_usb_tx_string("  ");
-            //            m_usb_tx_string("R3 =");
-            //            m_usb_tx_int(R3);
-            //            m_usb_tx_string("  ");
-            //            m_usb_tx_string("R4 =");
-            //            m_usb_tx_int(R4);
-            //            m_usb_tx_string("  ");
-            
+            m_usb_tx_string("L1=");
+            m_usb_tx_int(L1);
+            m_usb_tx_string("  ");
+            m_usb_tx_string("L2=");
+            m_usb_tx_int(L2);
+            m_usb_tx_string("L3 =");
+            m_usb_tx_int(L3);
+            m_usb_tx_string("  ");
+            m_usb_tx_string("L4 =");
+            m_usb_tx_int(L4);
+            m_usb_tx_string("  ");
+            m_usb_tx_string("R1=");
+            m_usb_tx_int(R1);
+            m_usb_tx_string("  ");
+            m_usb_tx_string("R2 =");
+            m_usb_tx_int(R2);
+            m_usb_tx_string("  ");
+            m_usb_tx_string("R3 =");
+            m_usb_tx_int(R3);
+            m_usb_tx_string("  ");
+            m_usb_tx_string("R4 =");
+            m_usb_tx_int(R4);
+            m_usb_tx_string("  ");
             m_usb_tx_int(leftcommand);
             m_usb_tx_string("  ");
             m_usb_tx_int(rightcommand);
+            
             m_usb_tx_string("\n");
+            
             
         }
         if (commFlag) {
@@ -243,7 +245,7 @@ int main(void){
                 stallup++;
             }
             
-            if(stallup>=9){
+            if(stallup>=5){
                 stall();
                 stallup = 0;
             }
@@ -342,13 +344,11 @@ int main(void){
             case ShootPuck:
                 //Transition to: No Obstacles
                 //Transition from: Default to Puck seek
-                
                 break;
                 
             case Celebration:
                 //Transition to: Goal interrupt
                 //Transition from: Go to wait
-                
                 break;
                 
             default:
@@ -904,9 +904,14 @@ void findPuck(void) {
     
     // if both L1 and R1 are high, drive forward!
     if (maxchannel ==  0 || maxchannel == 7) {
-        if (abs(ADCdata[0] - ADCdata[7]) < 100) {
+        
+        if (ADCdata[0]<700 || ADCdata[7]<700){
             maxchannel = FORWARD;
         }
+            
+            if (abs(ADCdata[0] - ADCdata[7]) < 100) {
+                maxchannel = FORWARD;
+            }
     }
     
     if (maxADC<100)
@@ -963,8 +968,13 @@ void findPuck(void) {
             break;
             
         case FORWARD:
-            puckdirr = plow;
-            puckdirl= plow;
+            if(robot_orientation_fil>PI && robot_orientation_fil<=(2*PI))
+            {puckdirr = plow;
+                puckdirl = plow;}
+            if(robot_orientation_fil>0 && robot_orientation_fil<=PI){
+                puckdirr = pvhigh;
+                puckdirl= pvhigh;
+            }
             break;
             
         case 9:
@@ -973,6 +983,7 @@ void findPuck(void) {
             //pindirection = 8;
             break;
         case POSSESSPUCK:
+            
             //  if you've got the puck, get out of this function and go score a fucking goal!!!
             break;
         default:
@@ -984,8 +995,7 @@ void findPuck(void) {
 void goScore(void) {
     
     if (y_robot_position_fil<=25 && y_robot_position_fil>0) {
-        red_LED(ON);
-        blue_LED(OFF);
+
         if(robot_orientation_fil>PI && robot_orientation_fil<=(3*PI/2)){
             GoalState = 1;
             rightcommand = low;
@@ -1015,8 +1025,6 @@ void goScore(void) {
     }
     
     if (y_robot_position_fil<=0 && y_robot_position_fil>-25) {
-        red_LED(OFF);
-        blue_LED(OFF);
         if(robot_orientation_fil>(3*PI/2) && robot_orientation_fil<=(2*PI)){
             rightcommand = high;
             leftcommand = low;
@@ -1047,8 +1055,6 @@ void goScore(void) {
     }
     
     if (y_robot_position_fil<=-25) {
-        red_LED(OFF);
-        blue_LED(ON);
         if(robot_orientation_fil>PI && robot_orientation_fil<=(3*PI/2)){
             rightcommand = high;
             leftcommand = vlow;
@@ -1077,8 +1083,6 @@ void goScore(void) {
     
     
     if (y_robot_position_fil>25) {
-        red_LED(OFF);
-        blue_LED(ON);
         if(robot_orientation_fil>PI && robot_orientation_fil<=(3*PI/2)){
             rightcommand = low;
             leftcommand = high;
@@ -1104,7 +1108,7 @@ void goScore(void) {
             leftcommand = high;
             GoalState = 13;
         }
-        }
+    }
     
     right_motor(rightcommand);
     left_motor(leftcommand);
@@ -1139,7 +1143,7 @@ void stall(void) {
         rightcommand = 100;
         right_motor(rightcommand);
         left_motor(leftcommand);
-        m_wait(400);
+        m_wait(1000);
         gtgstall = 0;
     }
     
@@ -1217,14 +1221,14 @@ void commHandler(void) {
 void avoid(void) { //call case if oriented at our goal, near our goal, and in puckfind or go to goal
     
     if(y_robot_position_fil>0){
-    
-//    if(robot_orientation_fil<(3*PI/2) && robot_orientation_fil>(PI+t) && y_robot_position_fil){
-//        rightcommand = 0;
-//        leftcommand = low;}
-//    if(robot_orientation_fil>(PI-t) && robot_orientation<(PI-t)){
-//        rightcommand = 0;
-//        leftcommand = 0;
-//    }
+        
+        //    if(robot_orientation_fil<(3*PI/2) && robot_orientation_fil>(PI+t) && y_robot_position_fil){
+        //        rightcommand = 0;
+        //        leftcommand = low;}
+        //    if(robot_orientation_fil>(PI-t) && robot_orientation<(PI-t)){
+        //        rightcommand = 0;
+        //        leftcommand = 0;
+        //    }
     }
     
 }
