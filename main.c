@@ -334,43 +334,8 @@ int main(void){
                 green_LED(OFF);
                 yellow_LED(OFF);
                 findPuck();
-                if(stallflag && x_robot_position_fil<70) //If in stall case do some stuff
-                {
-                    if (robot_orientation_fil<=(PI) && robot_orientation_fil>=0){ //Oriented at opponent goal
-                        
-                        if (robot_orientation_fil>PI/2 && robot_orientation_fil<=(PI) &&
-                            y_robot_position_fil<=-edge) { //take a step back and hit the puck as hard as you can
-                            //This side definitely works. Yet to see how helpful it will be
-                            rightcommand = -30;
-                            leftcommand = high;
-                        }
-                        if (robot_orientation_fil>PI/2 && robot_orientation_fil<=(PI) &&y_robot_position_fil>edge) {
-                            rightcommand = high; //Less sure about this
-                            leftcommand = high;
-                        }
-                        if (robot_orientation_fil>0 && robot_orientation_fil<=(PI/2) &&y_robot_position_fil<=-edge) {
-                            rightcommand = high;
-                            leftcommand = high;
-                        }
-                        if (robot_orientation_fil>0 && robot_orientation_fil<=(PI/2) &&y_robot_position_fil>edge) { //Not sure about this, probably not getting far enough over
-                            rightcommand = high;
-                            leftcommand = -30;
-                        }
-                        if (y_robot_position_fil<=edge && y_robot_position_fil>-edge && x_robot_position_fil>100) {
-                            rightcommand = high;
-                            leftcommand = high;
-                        }
-                        right_motor(rightcommand);
-                        left_motor(leftcommand);
-                    }
-                    else{
-                        rightcommand = (puckdirr); //If facing towards our goal/ not in one of above cases, behave as normal
-                        leftcommand = (puckdirl);
-                        left_motor(leftcommand);
-                        right_motor(rightcommand);}
-                }
                 
-                if (x_robot_position_fil<70) {
+                if (x_robot_position_fil<50) {
 
                     rightcommand = (puckdirr);
                     leftcommand = (puckdirl);
@@ -378,23 +343,31 @@ int main(void){
                     right_motor(rightcommand);
                 }
                 
-                if (x_robot_position_fil>=70)
+                if (x_robot_position_fil>=50)
                 {
                     if (robot_orientation_fil>=PI && robot_orientation_fil<=(2*PI)) {
                         if(puckdirr<0 || puckdirl<0){
                             leftcommand = puckdirl;
                             rightcommand = puckdirr;
                         }
+                        else{leftcommand = 0;
+                            rightcommand = 0;}
                     }
-                    if (robot_orientation_fil<PI && robot_orientation_fil>(PI/2)) {
-                        leftcommand = -plow;
-                        rightcommand = plow;
+                    if(robot_orientation_fil<(PI) && robot_orientation_fil>=0)
+                    {
+                        rightcommand = puckdirr;
+                        leftcommand = puckdirl;
                     }
-                    
-                    if (robot_orientation_fil>=0 && robot_orientation_fil<=(PI/2)) {
-                        leftcommand = plow;
-                        rightcommand = -plow;
-                    }
+
+                    //                    if (robot_orientation_fil<PI && robot_orientation_fil>(PI/2)) {
+//                        leftcommand = -plow;
+//                        rightcommand = plow;
+//                    }
+//                    
+//                    if (robot_orientation_fil>=0 && robot_orientation_fil<=(PI/2)) {
+//                        leftcommand = plow;
+//                        rightcommand = -plow;
+//                    }
                     left_motor(leftcommand);
                     right_motor(rightcommand);
                 }
@@ -2073,4 +2046,39 @@ ISR(TIMER3_COMPA_vect) {
 //                        m_usb_tx_string("\t");
 //                        m_usb_tx_int((int)(robot_orientation*127/6.3)); //Y position
 //                        m_usb_tx_string("\t");
-
+//
+//if(stallflag && x_robot_position_fil<70) //If in stall case do some stuff
+//{
+//    if (robot_orientation_fil<=(PI) && robot_orientation_fil>=0){ //Oriented at opponent goal
+//        
+//        if (robot_orientation_fil>PI/2 && robot_orientation_fil<=(PI) &&
+//            y_robot_position_fil<=-edge) { //take a step back and hit the puck as hard as you can
+//            //This side definitely works. Yet to see how helpful it will be
+//            rightcommand = -30;
+//            leftcommand = high;
+//        }
+//        if (robot_orientation_fil>PI/2 && robot_orientation_fil<=(PI) &&y_robot_position_fil>edge) {
+//            rightcommand = high; //Less sure about this
+//            leftcommand = high;
+//        }
+//        if (robot_orientation_fil>0 && robot_orientation_fil<=(PI/2) &&y_robot_position_fil<=-edge) {
+//            rightcommand = high;
+//            leftcommand = high;
+//        }
+//        if (robot_orientation_fil>0 && robot_orientation_fil<=(PI/2) &&y_robot_position_fil>edge) { //Not sure about this, probably not getting far enough over
+//            rightcommand = high;
+//            leftcommand = -30;
+//        }
+//        if (y_robot_position_fil<=edge && y_robot_position_fil>-edge && x_robot_position_fil>100) {
+//            rightcommand = high;
+//            leftcommand = high;
+//        }
+//        right_motor(rightcommand);
+//        left_motor(leftcommand);
+//    }
+//    else{
+//        rightcommand = (puckdirr); //If facing towards our goal/ not in one of above cases, behave as normal
+//        leftcommand = (puckdirl);
+//        left_motor(leftcommand);
+//        right_motor(rightcommand);}
+//}
