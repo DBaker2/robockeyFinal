@@ -494,14 +494,13 @@ int main(void){
                 }
                 
                 if (breakBeam < 900) {
-
                     rightcommand = high;
                     leftcommand = high;
                     //        green_LED(ON);
                 }
                 
                 if(goaliereturn){ //Realign and drive back to base
-//
+                    //
                     if(y_robot_position_fil>goalieyedge){
                         if (robot_orientation_fil<PI/2 && robot_orientation_fil>=0) {
                             rightcommand = -pmed;
@@ -540,31 +539,34 @@ int main(void){
                             rightcommand = -plow;
                             leftcommand = -pmed;
                         }
-
+                        
                     }
-                    if (abs(y_robot_position_fil)) {
+                    if (abs(y_robot_position_fil)<=goalieyedge) {
                         if(robot_orientation_fil>=0 && robot_orientation_fil<(PI/2-t2)){ //if directed to the right, turn
-                            //                        rightcommand = plow;
-                            //                        leftcommand = -plow;
-                            //                    }
-                            //                    if(robot_orientation_fil>(PI/2+t2) && robot_orientation_fil<(3*PI/2)){
-                            //                        rightcommand = -plow;
-                            //                        leftcommand = plow;
-                            //                    }
-                            //
-                            //                    if(robot_orientation_fil>=(3*PI/2) && robot_orientation_fil<=(2*PI)) {
-                            //                        rightcommand = plow;
-                            //                        leftcommand = -plow;
-                            //                    }
-                            //                                    }
-                            //    if(robot_orientation_fil>=(PI/2-t2) && robot_orientation_fil<=(PI/2+t2) && x_robot_position_fil<xedge) {
-                            //                        leftcommand = -med;
-                            //                        rightcommand = -med;
-                            //                    }
-
+                            rightcommand = plow;
+                            leftcommand = -plow;
+                        }
+                        if(robot_orientation_fil>(PI/2+t2) && robot_orientation_fil<(3*PI/2)){
+                            rightcommand = -plow;
+                            leftcommand = plow;
+                        }
+                        
+                        if(robot_orientation_fil>=(3*PI/2) && robot_orientation_fil<=(2*PI)) {
+                            rightcommand = plow;
+                            leftcommand = -plow;
+                        }
+                        if(robot_orientation_fil>=(PI/2-t2) && robot_orientation_fil<=(PI/2+t2) && x_robot_position_fil<xedge) {
+                            leftcommand = -med;
+                            rightcommand = -med;
+                        }
+                        if(robot_orientation_fil>=(PI/2-t2) && robot_orientation_fil<=(PI/2+t2) && x_robot_position_fil>xedge) {
+                            goaliereturn = 0;
+                        }
+                        
                     }
-                    
-//                                    right_motor(rightcommand);
+                }
+                
+                right_motor(rightcommand);
                 left_motor(leftcommand);
                 break;
                 
@@ -1556,6 +1558,7 @@ void avoid(void) { //call case if oriented at our goal, near our goal, and in pu
     
     
 }
+
 void red_LED(bool status) {
     if (status) {
         set(PORTB, PIN4);
