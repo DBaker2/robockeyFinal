@@ -16,7 +16,7 @@
 // Jon = 0x19
 // AQUAMAN = 0x1A
 
-#define RX_ADDRESS 0x18 //Receipt address
+#define RX_ADDRESS 0x1A //Receipt address
 
 //#define TX_ADDRESS 0x18 //Send address
 #define PACKET_LENGTH_SEND 10
@@ -85,13 +85,14 @@
 #define gmed 60
 #define ghigh 80
 #define gvhigh 100
+#define gvlow 20
 
 #define vlow 18 //
 
 #define edge 30 //For stall cases - defines the edge of the rink in y direction
-#define xedge 100
+#define xedge 90
 
-#define goalieadc 900
+#define goalieadc 960
 #define goalieyedge 15
 
 char buffer[PACKET_LENGTH_READ] = {0,0,0,0,0,0,0,0,0,0}; //data to be received
@@ -173,7 +174,7 @@ int stallup;
 int gtgstall;
 int redblueswitch = 1;
 int friendCounter = 0;
-
+int goalieturn = 0;
 int tenhz;
 
 
@@ -211,7 +212,7 @@ int main(void){
     
     while(TRUE) {
         // fiene said this might fix our rf problems
-        if (rf_counter >  200) {
+        if (rf_counter >  50) {
             rf_counter = 0;
             m_rf_open(CHANNEL, RX_ADDRESS, PACKET_LENGTH_READ);
         }
@@ -226,11 +227,11 @@ int main(void){
             m_usb_tx_string("\t");
             m_usb_tx_int((int)(State)); //X position, whatever that means
             m_usb_tx_string("\t");
-            m_usb_tx_int((int)(robot_orientation_fil*127/6.3)); //Y position
+            m_usb_tx_int((int)(maxADC)); //Y position
             m_usb_tx_string("\t");
-            m_usb_tx_int((int)maxADC);
+            m_usb_tx_int((int)goaliereturn);
             m_usb_tx_string("  ");
-            m_usb_tx_int((int)maxchannel);
+            m_usb_tx_int((int)goalieturn);
             m_usb_tx_string("  ");
             m_usb_tx_int(leftcommand);
             m_usb_tx_string("  ");
@@ -301,8 +302,8 @@ int main(void){
                 white_LED(OFF);
                 yellow_LED(OFF);
                 //                green_LED(ON);
-                //                red_LED(OFF);
-                //                blue_LED(OFF);
+                red_LED(OFF);
+                blue_LED(OFF);
                 
                 //                 blink led to confirm which goal is selected (will only occur at startup)
                 if (check(PIND, PIN3) && goalSwitchBlink) {
@@ -336,7 +337,6 @@ int main(void){
                 findPuck();
                 
                 if (x_robot_position_fil<50) {
-
                     rightcommand = (puckdirr);
                     leftcommand = (puckdirl);
                     left_motor(leftcommand);
@@ -405,7 +405,6 @@ int main(void){
                 }
                 
                 
-                
                 if (!stallflag) {
                     goScore();
                 }
@@ -424,8 +423,22 @@ int main(void){
                 
             case Goalie:
                 //
+                maxADC = 0;
                 findPuck();
-                if (maxADC<goalieadc && goaliereturn == 0) { //If puck is far away, look forward and back away if not close enough to puck
+                if (maxADC>goalieadc){
+                    if (x_robot_position_fil>=(xedge-40) || x_robot_position_fil<0) {
+                      
+                        leftcommand = puckdirl;
+                        rightcommand = puckdirr;
+                    }
+                    
+                    if (x_robot_position_fil<(xedge-40)) {
+                        goaliereturn = 1;
+                    }
+                }
+
+                
+                if (maxADC<goalieadc && goaliereturn == 0 && goalieturn == 0) { //If puck is far away, look forward and back away if not close enough to puck
                     
                     if(robot_orientation_fil>=0 && robot_orientation_fil<(PI/2-t2)){ //if directed to the right, turn
                         rightcommand = plow;
@@ -446,21 +459,24 @@ int main(void){
                         rightcommand = -40;
                     }
                     if(robot_orientation_fil>=(PI/2-t2) && robot_orientation_fil<=(PI/2+t2) && x_robot_position_fil>xedge) {
-                        leftcommand = 0;
-                        rightcommand = 0;
+                        goalieturn = 1;
                     }
                 }
-                if (maxADC>goalieadc && goaliereturn == 0){
-                    if(x_robot_position_fil>=(xedge-40)){
-                        puckFindTurn();
+                
+                if(maxADC<goalieadc && goalieturn ==1 && x_robot_position_fil>=(xedge-10)) {
+                    if(puckdirr<0 || puckdirl<0){
                         leftcommand = puckdirl;
                         rightcommand = puckdirr;
                     }
-                    if(x_robot_position_fil<=(xedge-40)){
-                        goaliereturn = 1;
-                    }
-                    
+                    else{leftcommand = 0;
+                        rightcommand = 0;}
                 }
+                
+                if(maxADC<goalieadc && goalieturn ==1 && x_robot_position_fil<(xedge-10))
+                {
+                    goalieturn = 0;
+                }
+    
                 
                 if (breakBeam < 900) {
                     if(robot_orientation_fil>0 && robot_orientation_fil<=(PI/2)){
@@ -470,15 +486,15 @@ int main(void){
                         rightcommand = ghigh;
                         leftcommand = gvhigh;}
                     if(robot_orientation_fil>(PI) && robot_orientation_fil<=(3*PI/2)){
-                        rightcommand = glow;
+                        rightcommand = gvlow;
                         leftcommand = ghigh;}
                     if(robot_orientation_fil>(3*PI/2) && robot_orientation_fil<=(2*PI)){
                         rightcommand = ghigh;
-                        leftcommand = glow;}
+                        leftcommand = gvlow;}
                     //        green_LED(ON);
                 }
                 
-                if(goaliereturn){ //Realign and drive back to base
+                if(maxADC<goalieadc && goaliereturn){ //Realign and drive back to base
                     //
                     if(y_robot_position_fil>goalieyedge){
                         if (robot_orientation_fil<(PI/2) && robot_orientation_fil>=0) {
@@ -1501,13 +1517,13 @@ void kick(void)  {
     clear(TCCR3A,WGM30);
     
     if (RX_ADDRESS == 0x18) {
-        OCR1A = 1500;
+        OCR3A = 1300;
     }
     if (RX_ADDRESS == 0x19){
-        OCR1A = 1000;
+        OCR3A = 900;
     }
     if (RX_ADDRESS == 0x1A) {
-        OCR1A = 750;
+        OCR3A = 800;
     }
     
     // interrupt when TCNT3 == OCR3A
@@ -2082,3 +2098,129 @@ ISR(TIMER3_COMPA_vect) {
 //        left_motor(leftcommand);
 //        right_motor(rightcommand);}
 //}
+
+
+//                findPuck();
+//                if (maxADC<goalieadc && goaliereturn == 0) { //If puck is far away, look forward and back away if not close enough to puck
+//
+//                    if(robot_orientation_fil>=0 && robot_orientation_fil<(PI/2-t2)){ //if directed to the right, turn
+//                        rightcommand = plow;
+//                        leftcommand = -plow;
+//                    }
+//                    if(robot_orientation_fil>(PI/2+t2) && robot_orientation_fil<(3*PI/2)){
+//                        rightcommand = -plow;
+//                        leftcommand = plow;
+//                    }
+//
+//                    if(robot_orientation_fil>=(3*PI/2) && robot_orientation_fil<=(2*PI)) {
+//                        rightcommand = plow;
+//                        leftcommand = -plow;
+//                    }
+//
+//                    if(robot_orientation_fil>=(PI/2-t2) && robot_orientation_fil<=(PI/2+t2) && x_robot_position_fil<=xedge) {
+//                        leftcommand = -40;
+//                        rightcommand = -40;
+//                    }
+//                    if(robot_orientation_fil>=(PI/2-t2) && robot_orientation_fil<=(PI/2+t2) && x_robot_position_fil>xedge) {
+//                        leftcommand = 0;
+//                        rightcommand = 0;
+//                    }
+//                }
+//                if (maxADC>goalieadc && goaliereturn == 0){
+//                    if(x_robot_position_fil>=(xedge-40)){
+//                        puckFindTurn();
+//                        leftcommand = puckdirl;
+//                        rightcommand = puckdirr;
+//                    }
+//                    if(x_robot_position_fil<=(xedge-40)){
+//                        goaliereturn = 1;
+//                    }
+//
+//                }
+//
+//                if (breakBeam < 900) {
+//                    if(robot_orientation_fil>0 && robot_orientation_fil<=(PI/2)){
+//                        rightcommand = gvhigh;
+//                        leftcommand = ghigh;}
+//                    if(robot_orientation_fil>(PI/2) && robot_orientation_fil<=PI){
+//                        rightcommand = ghigh;
+//                        leftcommand = gvhigh;}
+//                    if(robot_orientation_fil>(PI) && robot_orientation_fil<=(3*PI/2)){
+//                        rightcommand = glow;
+//                        leftcommand = ghigh;}
+//                    if(robot_orientation_fil>(3*PI/2) && robot_orientation_fil<=(2*PI)){
+//                        rightcommand = ghigh;
+//                        leftcommand = glow;}
+//                    //        green_LED(ON);
+//                }
+//
+//                if(goaliereturn){ //Realign and drive back to base
+//                    //
+//                    if(y_robot_position_fil>goalieyedge){
+//                        if (robot_orientation_fil<(PI/2) && robot_orientation_fil>=0) {
+//                            rightcommand = -gmed;
+//                            leftcommand = -glow;
+//                        }
+//                        if (robot_orientation_fil<(2*PI) && robot_orientation_fil>=(3*PI/2)) {
+//                            rightcommand = -glow;
+//                            leftcommand = -gmed;
+//                        }
+//                        if (robot_orientation_fil<(3*PI/2) && robot_orientation_fil>=(PI)) {
+//                            rightcommand = gmed;
+//                            leftcommand = gmed;
+//                        }
+//                        if (robot_orientation_fil<(PI) && robot_orientation_fil>=(PI/2)) {
+//                            rightcommand = -gmed;
+//                            leftcommand = -glow;
+//                        }
+//
+//                    }
+//
+//                    if(y_robot_position_fil<-goalieyedge)
+//                    {
+//                        if (robot_orientation_fil<(PI/2) && robot_orientation_fil>=0) {
+//                            rightcommand = -glow;
+//                            leftcommand = -gmed;
+//                        }
+//                        if (robot_orientation_fil<=(2*PI) && robot_orientation_fil>=(3*PI/2)) {
+//                            rightcommand = gmed;
+//                            leftcommand = glow;
+//                        }
+//                        if (robot_orientation_fil<(3*PI/2) && robot_orientation_fil>=(PI)) {
+//                            rightcommand = -gmed;
+//                            leftcommand = -glow;
+//                        }
+//                        if (robot_orientation_fil<(PI) && robot_orientation_fil>=(PI/2)) {
+//                            rightcommand = -glow;
+//                            leftcommand = -gmed;
+//                        }
+//
+//                    }
+//                    if (abs(y_robot_position_fil)<=goalieyedge) {
+//                        if(robot_orientation_fil>=0 && robot_orientation_fil<(PI/2-t2)){ //if directed to the right, turn
+//                            rightcommand = glow;
+//                            leftcommand = -glow;
+//                        }
+//                        if(robot_orientation_fil>(PI/2+t2) && robot_orientation_fil<(3*PI/2)){
+//                            rightcommand = -glow;
+//                            leftcommand = glow;
+//                        }
+//
+//                        if(robot_orientation_fil>=(3*PI/2) && robot_orientation_fil<=(2*PI)) {
+//                            rightcommand = glow;
+//                            leftcommand = -glow;
+//                        }
+//                        if(robot_orientation_fil>=(PI/2-t2) && robot_orientation_fil<=(PI/2+t2) && x_robot_position_fil<xedge) {
+//                            leftcommand = -ghigh;
+//                            rightcommand = -ghigh;
+//                        }
+//                        if(robot_orientation_fil>=(PI/2-t2) && robot_orientation_fil<=(PI/2+t2) && x_robot_position_fil>xedge) {
+//                            goaliereturn = 0;
+//                        }
+//
+//                    }
+//                }
+//
+//                right_motor(rightcommand);
+//                left_motor(leftcommand);
+//                break;
