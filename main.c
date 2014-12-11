@@ -16,7 +16,7 @@
 // Jon = 0x19
 // AQUAMAN = 0x1A
 
-#define RX_ADDRESS 0x1A //Receipt address
+#define RX_ADDRESS 0x19 //Receipt address
 
 //#define TX_ADDRESS 0x18 //Send address
 #define PACKET_LENGTH_SEND 3
@@ -158,6 +158,8 @@ int maxADC;
 float t2 = .25;
 int goaliereturn;
 int Aquaman = 0;
+bool kickFlag = 1;
+
 
 int stallcount = 0;
 int stallflag = 0;
@@ -193,6 +195,8 @@ void commHandler(void);
 void stallHandler(void);
 void puckFindTurn(void);
 void puckFindArc(void);
+void kick(void);
+
 int main(void){
     
     init();
@@ -234,6 +238,8 @@ int main(void){
 //                        m_usb_tx_string("\t");
 //                        m_usb_tx_int((int)(robot_orientation*127/6.3)); //Y position
 //                        m_usb_tx_string("\t");
+            m_usb_tx_int((int)(kickFlag)); //X position, whatever that means
+            m_usb_tx_string("\t");
             m_usb_tx_int((int)(x_robot_position_fil)); //X position, whatever that means
             m_usb_tx_string("\t");
             m_usb_tx_int((int)(y_robot_position_fil)); //Y position
@@ -1426,8 +1432,18 @@ void goScore(void) {
             leftcommand = high;
             GoalState = 13;
         }
+
     }
     
+        if (kickFlag == 1) {
+            if (y_robot_position_fil<=25 && y_robot_position_fil>=-25) {
+                if (x_robot_position_fil < -30) {
+                    if (robot_orientation_fil > (PI/2 - t) && robot_orientation_fil < (PI/2 + t)) {
+                        kick();
+                    }
+                }
+            }
+    }
     right_motor(rightcommand);
     left_motor(leftcommand);
     
@@ -1482,6 +1498,28 @@ void left_motor(int leftcommand){
         set(PORTB,PIN3);
         OCR4B = -1*leftcommand*timer0count;}
 }
+
+
+void kick(void)  {
+    kickFlag = 0;
+    set(PORTD,PIN5);
+
+    //  timer 3 to /256
+    set(TCCR3B,CS32);
+    clear(TCCR3B,CS31);
+    clear(TCCR3B,CS30);
+
+    // mode 4
+    clear(TCCR3B,WGM33);
+    set(TCCR3B,WGM32);
+    clear(TCCR3A,WGM31);
+    clear(TCCR3A,WGM30);
+
+    OCR3A = 1000;
+
+    // interrupt when TCNT3 == OCR3A
+    set(TIMSK3,OCIE3A);
+}  
 
 void right_motor(int rightcommand){
     if(rightcommand>=0){
@@ -1618,6 +1656,16 @@ ISR(ADC_vect){
     //ADC Order = L1, L2, L3, L4, R4, R3, R2 ,R1
     adcflag = 1;
 }
+
+// timer 3 interrupt for kicking
+ISR(TIMER3_COMPA_vect) {
+    clear(PORTD,PIN5);
+    //  timer 3 OFF
+    clear(TCCR3B,CS32);
+    clear(TCCR3B,CS31);
+    clear(TCCR3B,CS30);
+}
+
 
 //// Useful Blocks of code
 //
