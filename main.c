@@ -16,7 +16,7 @@
 // Jon = 0x19
 // AQUAMAN = 0x1A
 
-#define RX_ADDRESS 0x1A //Receipt address
+#define RX_ADDRESS 0x18//Receipt address
 
 //#define TX_ADDRESS 0x18 //Send address
 #define PACKET_LENGTH_SEND 10
@@ -92,7 +92,7 @@
 #define edge 30 //For stall cases - defines the edge of the rink in y direction
 #define xedge 90
 
-#define goalieadc 960
+#define goalieadc 930
 #define goalieyedge 15
 
 char buffer[PACKET_LENGTH_READ] = {0,0,0,0,0,0,0,0,0,0}; //data to be received
@@ -371,6 +371,7 @@ int main(void){
                     left_motor(leftcommand);
                     right_motor(rightcommand);
                 }
+                
                 
                 break;
                 
