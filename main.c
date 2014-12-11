@@ -16,10 +16,10 @@
 // Jon = 0x19
 // AQUAMAN = 0x1A
 
-#define RX_ADDRESS 0x19 //Receipt address
+#define RX_ADDRESS 0x18 //Receipt address
 
 //#define TX_ADDRESS 0x18 //Send address
-#define PACKET_LENGTH_SEND 3
+#define PACKET_LENGTH_SEND 10
 #define CHANNEL 1
 #define PACKET_LENGTH_READ 10
 #define PI 3.14
@@ -78,8 +78,13 @@
 #define plow 40 //Puckfinding low
 #define phigh 60 //
 #define pvlow 20 //
-#define pvhigh 80 //
+#define pvhigh 90 //
 #define pmed 50
+
+#define glow 40
+#define gmed 60
+#define ghigh 80
+#define gvhigh 100
 
 #define vlow 18 //
 
@@ -90,7 +95,7 @@
 #define goalieyedge 15
 
 char buffer[PACKET_LENGTH_READ] = {0,0,0,0,0,0,0,0,0,0}; //data to be received
-char send_data[PACKET_LENGTH_SEND] = {0,0,0}; // data to be sent to game controller
+char send_data[PACKET_LENGTH_SEND] = {0,0,0,0,0,0,0,0,0,0}; // data to be sent to game controller
 
 //Localisation variables
 volatile int State = Listen;
@@ -159,7 +164,7 @@ float t2 = .25;
 int goaliereturn;
 int Aquaman = 0;
 bool kickFlag = 1;
-
+int check2 = 0;
 
 int stallcount = 0;
 int stallflag = 0;
@@ -167,7 +172,9 @@ int stallreset = 0;
 int stallup;
 int gtgstall;
 int redblueswitch = 1;
+int friendCounter = 0;
 
+int tenhz;
 
 
 
@@ -196,6 +203,7 @@ void stallHandler(void);
 void puckFindTurn(void);
 void puckFindArc(void);
 void kick(void);
+void helpFriends(void);
 
 int main(void){
     
@@ -208,36 +216,6 @@ int main(void){
             m_rf_open(CHANNEL, RX_ADDRESS, PACKET_LENGTH_READ);
         }
         if (m_usb_isconnected()) {
-//            m_usb_tx_string("L1 = ");
-//            m_usb_tx_int(breakBeam);
-//            m_usb_tx_string("  ");
-//            m_usb_tx_string(" L2= ");
-//            m_usb_tx_int(L2);
-//            m_usb_tx_string("  L3 = ");
-//            m_usb_tx_int(L3);
-//            m_usb_tx_string("  ");
-//            m_usb_tx_string(" L4 = ");
-//            m_usb_tx_int(L4);
-//            m_usb_tx_string("  ");
-//            m_usb_tx_string(" R1 = ");
-//            m_usb_tx_int(R1);
-//            m_usb_tx_string("  ");
-//            m_usb_tx_string(" R2 = ");
-//            m_usb_tx_int(R2);
-//            m_usb_tx_string("  ");
-//            m_usb_tx_string(" R3 = ");
-//            m_usb_tx_int(R3);
-//            m_usb_tx_string("  ");
-//            m_usb_tx_string(" R4 = ");
-//            m_usb_tx_int(R4);
-//            m_usb_tx_string("\n");
-//                        m_usb_tx_int((int)(robot_position[0])); //X position, whatever that means
-//            
-//                        m_usb_tx_string("\t");
-//                        m_usb_tx_int((int)robot_position[1]); //Y position
-//                        m_usb_tx_string("\t");
-//                        m_usb_tx_int((int)(robot_orientation*127/6.3)); //Y position
-//                        m_usb_tx_string("\t");
             m_usb_tx_int((int)(kickFlag)); //X position, whatever that means
             m_usb_tx_string("\t");
             m_usb_tx_int((int)(x_robot_position_fil)); //X position, whatever that means
@@ -248,8 +226,6 @@ int main(void){
             m_usb_tx_string("\t");
             m_usb_tx_int((int)(State)); //X position, whatever that means
             m_usb_tx_string("\t");
-//            m_usb_tx_int((int)(stallflag)); //Y position
-//            m_usb_tx_string("\t");
             m_usb_tx_int((int)(robot_orientation_fil*127/6.3)); //Y position
             m_usb_tx_string("\t");
             m_usb_tx_int((int)maxADC);
@@ -260,9 +236,6 @@ int main(void){
             m_usb_tx_string("  ");
             m_usb_tx_int(rightcommand);
             m_usb_tx_string("\n");
-            
-            
-            
         }
         if (commFlag) {
             commHandler();
@@ -273,7 +246,17 @@ int main(void){
             adcflag = 0;
         }
         
-        if(send_flag == 1){ //10hz
+        if(send_flag == 1){ //100hz
+            tenhz++;
+            if(tenhz>10)
+            {
+                tenhz = 0;
+            }
+            
+            if (tenhz == 10 && check2<11) {
+                helpFriends();
+            }
+            
             
             if(rightcommand == 0 && leftcommand == 0){ // If the motors are intentionally at 0 duty cycle, dont run stall case
                 stop = 1;
@@ -281,7 +264,6 @@ int main(void){
             else{stop = 0;
                 //stallHandler();
             }
-            
             
             
             m_wii_read(star_data);
@@ -301,12 +283,12 @@ int main(void){
             robot_orientation_fil = robot_orientation_dir;
             x_robot_position_fil = robot_position[0]*OppGoalSign; //Our goal is always the positive side
             y_robot_position_fil = robot_position[1]*OppGoalSign; //The left of the rink from our perspective is always negative
-            if (1) {
-                send_data[0] = (char)robot_position[0];//TX_ADDRESS;
-                send_data[1] = (char)robot_position[1];
-                send_data[2] = (char)(robot_orientation*127/6.3);
-                //m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND); //Code for sending star data in footnote
-            }
+//            if (1) {
+//                send_data[0] = buffer[0];//TX_ADDRESS;
+//                send_data[1] = 1;
+//                send_data[9] = buffer[9];
+//                //m_rf_send(TX_ADDRESS, send_data, PACKET_LENGTH_SEND); //Code for sending star data in footnote
+//            }
             send_flag = 0;
        	}
         
@@ -318,9 +300,9 @@ int main(void){
                 right_motor(rightcommand);
                 white_LED(OFF);
                 yellow_LED(OFF);
-//                green_LED(ON);
-//                red_LED(OFF);
-//                blue_LED(OFF);
+                //                green_LED(ON);
+                //                red_LED(OFF);
+                //                blue_LED(OFF);
                 
                 //                 blink led to confirm which goal is selected (will only occur at startup)
                 if (check(PIND, PIN3) && goalSwitchBlink) {
@@ -330,8 +312,8 @@ int main(void){
                     goalSwitchBlink = 0;
                     if(RX_ADDRESS == 0x1A){
                         Aquaman = 1;}
-//                    m_wait(100);
-//                    red_LED(OFF);
+                        m_wait(100);
+                        red_LED(OFF);
                 } else if (!check(PIND, PIN3) && goalSwitchBlink) {
                     blue_LED(ON);
                     OppGoalSign = 1;
@@ -339,8 +321,8 @@ int main(void){
                     goalSwitchBlink = 0;
                     if(RX_ADDRESS == 0x1A){
                         Aquaman = 1;}
-//                    m_wait(100);
-//                    blue_LED(OFF);
+                    m_wait(100);
+                    blue_LED(OFF);
                 }
                 State = Listen;
                 break;
@@ -351,8 +333,8 @@ int main(void){
                 white_LED(OFF);
                 green_LED(OFF);
                 yellow_LED(OFF);
-                
-                if(stallflag && x_robot_position_fil<80) //If in stall case do some stuff
+                findPuck();
+                if(stallflag && x_robot_position_fil<70) //If in stall case do some stuff
                 {
                     if (robot_orientation_fil<=(PI) && robot_orientation_fil>=0){ //Oriented at opponent goal
                         
@@ -382,28 +364,40 @@ int main(void){
                         left_motor(leftcommand);
                     }
                     else{
-                        findPuck();
                         rightcommand = (puckdirr); //If facing towards our goal/ not in one of above cases, behave as normal
                         leftcommand = (puckdirl);
                         left_motor(leftcommand);
                         right_motor(rightcommand);}
                 }
                 
-                if (!stallflag){ //&& x_robot_position_fil<90) {
-                    findPuck();
+                if (x_robot_position_fil<70) {
+
                     rightcommand = (puckdirr);
                     leftcommand = (puckdirl);
                     left_motor(leftcommand);
                     right_motor(rightcommand);
                 }
                 
-//                if (x_robot_position_fil>=90)
-//                {
-//                    leftcommand = 0;
-//                    rightcommand = 0;
-//                    left_motor(leftcommand);
-//                    right_motor(rightcommand);
-//                }
+                if (x_robot_position_fil>=70)
+                {
+                    if (robot_orientation_fil>=PI && robot_orientation_fil<=(2*PI)) {
+                        if(puckdirr<0 || puckdirl<0){
+                            leftcommand = puckdirl;
+                            rightcommand = puckdirr;
+                        }
+                    }
+                    if (robot_orientation_fil<PI && robot_orientation_fil>(PI/2)) {
+                        leftcommand = -plow;
+                        rightcommand = plow;
+                    }
+                    
+                    if (robot_orientation_fil>=0 && robot_orientation_fil<=(PI/2)) {
+                        leftcommand = plow;
+                        rightcommand = -plow;
+                    }
+                    left_motor(leftcommand);
+                    right_motor(rightcommand);
+                }
                 
                 break;
                 
@@ -437,7 +431,7 @@ int main(void){
                     }
                 }
                 
-
+                
                 
                 if (!stallflag) {
                     goScore();
@@ -447,7 +441,7 @@ int main(void){
                 if (breakBeam > 900) {
                     State = PuckFind;
                 }
-
+                
                 break;
                 
             case Follow:
@@ -456,11 +450,7 @@ int main(void){
                 break;
                 
             case Goalie:
-                // Track puck if ADC > ?
-                // Look Forward if ADC < ?
-                // Drive to puck if ADC > ?+
-                //or
-                //Drive to side of rink puck is on if ADC >
+                //
                 findPuck();
                 if (maxADC<goalieadc && goaliereturn == 0) { //If puck is far away, look forward and back away if not close enough to puck
                     
@@ -478,7 +468,7 @@ int main(void){
                         leftcommand = -plow;
                     }
                     
-                    if(robot_orientation_fil>(PI/2-t2) && robot_orientation_fil<(PI/2+t2) && x_robot_position_fil<=xedge) {
+                    if(robot_orientation_fil>=(PI/2-t2) && robot_orientation_fil<=(PI/2+t2) && x_robot_position_fil<=xedge) {
                         leftcommand = -40;
                         rightcommand = -40;
                     }
@@ -496,74 +486,84 @@ int main(void){
                     if(x_robot_position_fil<=(xedge-40)){
                         goaliereturn = 1;
                     }
-                
+                    
                 }
                 
                 if (breakBeam < 900) {
-                    rightcommand = high;
-                    leftcommand = high;
+                    if(robot_orientation_fil>0 && robot_orientation_fil<=(PI/2)){
+                        rightcommand = gvhigh;
+                        leftcommand = ghigh;}
+                    if(robot_orientation_fil>(PI/2) && robot_orientation_fil<=PI){
+                        rightcommand = ghigh;
+                        leftcommand = gvhigh;}
+                    if(robot_orientation_fil>(PI) && robot_orientation_fil<=(3*PI/2)){
+                        rightcommand = glow;
+                        leftcommand = ghigh;}
+                    if(robot_orientation_fil>(3*PI/2) && robot_orientation_fil<=(2*PI)){
+                        rightcommand = ghigh;
+                        leftcommand = glow;}
                     //        green_LED(ON);
                 }
                 
                 if(goaliereturn){ //Realign and drive back to base
                     //
                     if(y_robot_position_fil>goalieyedge){
-                        if (robot_orientation_fil<PI/2 && robot_orientation_fil>=0) {
-                            rightcommand = -pmed;
-                            leftcommand = -plow;
+                        if (robot_orientation_fil<(PI/2) && robot_orientation_fil>=0) {
+                            rightcommand = -gmed;
+                            leftcommand = -glow;
                         }
                         if (robot_orientation_fil<(2*PI) && robot_orientation_fil>=(3*PI/2)) {
-                            rightcommand = -plow;
-                            leftcommand = -pmed;
+                            rightcommand = -glow;
+                            leftcommand = -gmed;
                         }
                         if (robot_orientation_fil<(3*PI/2) && robot_orientation_fil>=(PI)) {
-                            rightcommand = pmed;
-                            leftcommand = pmed;
+                            rightcommand = gmed;
+                            leftcommand = gmed;
                         }
                         if (robot_orientation_fil<(PI) && robot_orientation_fil>=(PI/2)) {
-                            rightcommand = -pmed;
-                            leftcommand = -plow;
+                            rightcommand = -gmed;
+                            leftcommand = -glow;
                         }
                         
                     }
                     
                     if(y_robot_position_fil<-goalieyedge)
                     {
-                        if (robot_orientation_fil<PI/2 && robot_orientation_fil>=0) {
-                            rightcommand = -plow;
-                            leftcommand = -pmed;
+                        if (robot_orientation_fil<(PI/2) && robot_orientation_fil>=0) {
+                            rightcommand = -glow;
+                            leftcommand = -gmed;
                         }
-                        if (robot_orientation_fil<(2*PI) && robot_orientation_fil>=(3*PI/2)) {
-                            rightcommand = pmed;
-                            leftcommand = plow;
+                        if (robot_orientation_fil<=(2*PI) && robot_orientation_fil>=(3*PI/2)) {
+                            rightcommand = gmed;
+                            leftcommand = glow;
                         }
                         if (robot_orientation_fil<(3*PI/2) && robot_orientation_fil>=(PI)) {
-                            rightcommand = -pmed;
-                            leftcommand = -plow;
+                            rightcommand = -gmed;
+                            leftcommand = -glow;
                         }
                         if (robot_orientation_fil<(PI) && robot_orientation_fil>=(PI/2)) {
-                            rightcommand = -plow;
-                            leftcommand = -pmed;
+                            rightcommand = -glow;
+                            leftcommand = -gmed;
                         }
                         
                     }
                     if (abs(y_robot_position_fil)<=goalieyedge) {
                         if(robot_orientation_fil>=0 && robot_orientation_fil<(PI/2-t2)){ //if directed to the right, turn
-                            rightcommand = plow;
-                            leftcommand = -plow;
+                            rightcommand = glow;
+                            leftcommand = -glow;
                         }
                         if(robot_orientation_fil>(PI/2+t2) && robot_orientation_fil<(3*PI/2)){
-                            rightcommand = -plow;
-                            leftcommand = plow;
+                            rightcommand = -glow;
+                            leftcommand = glow;
                         }
                         
                         if(robot_orientation_fil>=(3*PI/2) && robot_orientation_fil<=(2*PI)) {
-                            rightcommand = plow;
-                            leftcommand = -plow;
+                            rightcommand = glow;
+                            leftcommand = -glow;
                         }
                         if(robot_orientation_fil>=(PI/2-t2) && robot_orientation_fil<=(PI/2+t2) && x_robot_position_fil<xedge) {
-                            leftcommand = -med;
-                            rightcommand = -med;
+                            leftcommand = -ghigh;
+                            rightcommand = -ghigh;
                         }
                         if(robot_orientation_fil>=(PI/2-t2) && robot_orientation_fil<=(PI/2+t2) && x_robot_position_fil>xedge) {
                             goaliereturn = 0;
@@ -840,10 +840,10 @@ bool find_position(unsigned int star_data[]) {
             float Ay = star_data[(3*A)+1];
             float Cx = star_data[3*C];
             float Cy = star_data[(3*C)+1];
-//            float Bx = star_data[3*B]; //Non axial star data for plotting raw star data
-//            float By = star_data[(3*B)+1];
-//            float Dx = star_data[3*D];
-//            float Dy = star_data[(3*D)+1];
+            //            float Bx = star_data[3*B]; //Non axial star data for plotting raw star data
+            //            float By = star_data[(3*B)+1];
+            //            float Dx = star_data[3*D];
+            //            float Dy = star_data[(3*D)+1];
             
             
             
@@ -1151,10 +1151,10 @@ void findPuck(void) {
     if (maxADC<100)
     {maxchannel = 8;}
     
-    if (maxADC<800) {
+    if (maxADC<900) {
         puckFindArc();
     }
-    if (maxADC>=800) {
+    if (maxADC>=900) {
         puckFindTurn(); //Called so we can use the same Switch case for PuckFind and Goalie State
     }
 }
@@ -1247,8 +1247,8 @@ void puckFindArc(void){
             //pindirection = 0;
             break;
         case 1:
-            puckdirr = plow;
-            puckdirl= -plow;
+            puckdirr = phigh;
+            puckdirl= plow;
             lastPin = PIN1;
             //pindirection = 1;
             break;
@@ -1432,17 +1432,17 @@ void goScore(void) {
             leftcommand = high;
             GoalState = 13;
         }
-
+        
     }
     
-        if (kickFlag == 1) {
-            if (y_robot_position_fil<=25 && y_robot_position_fil>=-25) {
-                if (x_robot_position_fil < -30) {
-                    if (robot_orientation_fil > (PI/2 - t) && robot_orientation_fil < (PI/2 + t)) {
-                        kick();
-                    }
+    if (kickFlag == 1) {
+        if (y_robot_position_fil<=25 && y_robot_position_fil>=-25) {
+            if (x_robot_position_fil < -30) {
+                if (robot_orientation_fil > (PI/2 - t) && robot_orientation_fil < (PI/2 + t)) {
+                    kick();
                 }
             }
+        }
     }
     right_motor(rightcommand);
     left_motor(leftcommand);
@@ -1499,27 +1499,47 @@ void left_motor(int leftcommand){
         OCR4B = -1*leftcommand*timer0count;}
 }
 
+void helpFriends(void) {
+            check2++;
+            if (RX_ADDRESS != 0x18) {
+                m_rf_send(0x18, send_data, PACKET_LENGTH_SEND);
+            }
+            if (RX_ADDRESS != 0x19) {
+                m_rf_send(0x19, send_data, PACKET_LENGTH_SEND);
+            }
+            if (RX_ADDRESS != 0x1A) {
+                m_rf_send(0x1A, send_data, PACKET_LENGTH_SEND);
+            }
+}
 
 void kick(void)  {
     kickFlag = 0;
     set(PORTD,PIN5);
-
+    
     //  timer 3 to /256
     set(TCCR3B,CS32);
     clear(TCCR3B,CS31);
     clear(TCCR3B,CS30);
-
+    
     // mode 4
     clear(TCCR3B,WGM33);
     set(TCCR3B,WGM32);
     clear(TCCR3A,WGM31);
     clear(TCCR3A,WGM30);
-
-    OCR3A = 1000;
-
+    
+    if (RX_ADDRESS == 0x18) {
+        OCR1A = 1500;
+    }
+    if (RX_ADDRESS == 0x19){
+        OCR1A = 1000;
+    }
+    if (RX_ADDRESS == 0x1A) {
+        OCR1A = 750;
+    }
+    
     // interrupt when TCNT3 == OCR3A
     set(TIMSK3,OCIE3A);
-}  
+}
 
 void right_motor(int rightcommand){
     if(rightcommand>=0){
@@ -1563,9 +1583,15 @@ void commHandler(void) {
             if(Aquaman){
                 State = Goalie;}
             else {State = PuckFind;}
+            if(buffer[1] != 1){
+                check2= 0;
+            }
             break;
         case PAUSE:
             State = Listen;
+            if(buffer[1] != 1){
+                check2 = 0;
+            }
             break;
         case HALF_TIME:
             State = Listen;
@@ -1580,21 +1606,6 @@ void commHandler(void) {
             break;
     }
     commFlag = 0;
-}
-
-void avoid(void) { //call case if oriented at our goal, near our goal, and in puckfind or go to goal
-    
-    //if(y_robot_position_fil>0){
-        
-        //    if(robot_orientation_fil<(3*PI/2) && robot_orientation_fil>(PI+t) && y_robot_position_fil){
-        //        rightcommand = 0;
-        //        leftcommand = low;}
-        //    if(robot_orientation_fil>(PI-t) && robot_orientation<(PI-t)){
-        //        rightcommand = 0;
-        //        leftcommand = 0;
-        //    }
-    
-    
 }
 
 void red_LED(bool status) {
@@ -1637,15 +1648,17 @@ void yellow_LED(bool status) {
 
 ////
 ISR(TIMER1_OVF_vect) {
-    // when timer oveflows (set for 10Hz), process and transmit data
+    // when timer oveflows (set for 100Hz), process and transmit data
     send_flag = 1;
     rf_counter++;
+    friendCounter++;
 }
 
 
 // interupt when comm is recieved
 ISR(INT2_vect){
     commFlag = 1;
+    friendCounter = 0;
     //red_LED(ON);
     //Will determine values of oppgoal and opptarget
 }
@@ -1995,7 +2008,7 @@ ISR(TIMER3_COMPA_vect) {
 //        left_motor(leftcommand);
 //        m_wait(200);
 //    }
-//    
+//
 //    if(State == GoToGoal && gtgstall==1){
 //        leftcommand = 100;
 //        rightcommand = 100;
@@ -2004,7 +2017,7 @@ ISR(TIMER3_COMPA_vect) {
 //        m_wait(1000);
 //        gtgstall = 0;
 //    }
-//    
+//
 //    if(State == GoToGoal && gtgstall ==0){
 //        leftcommand = -40;
 //        rightcommand = -40;
@@ -2013,19 +2026,51 @@ ISR(TIMER3_COMPA_vect) {
 //        m_wait(200);
 //        gtgstall = 1;
 //    }
-//    
+//
 //}
 
 
-        //                    if(robot_orientation_fil>=(PI/2-t2) && robot_orientation_fil<=(PI/2+t2) && x_robot_position_fil<xedge && y_robot_position_fil<=-goalieedge) {
-        //                        leftcommand = -phigh;
-        //                        rightcommand = -plow;
-        //                    }
-        //                    if(robot_orientation_fil>=(PI/2-t2) && robot_orientation_fil<=(PI/2+t2) && x_robot_position_fil<xedge && y_robot_position_fil>=goalieedge) {
-        //                        leftcommand = -plow;
-        //                        rightcommand = -phigh;
-        //                    }
-        //                    if(robot_orientation_fil>=(PI/2-t2) && robot_orientation_fil<=(PI/2+t2) && x_robot_position_fil>=xedge) {
-        //                        goaliereturn = 0;
-        //                    }
-        //                    
+//                    if(robot_orientation_fil>=(PI/2-t2) && robot_orientation_fil<=(PI/2+t2) && x_robot_position_fil<xedge && y_robot_position_fil<=-goalieyedge) {
+//                        leftcommand = -phigh;
+//                        rightcommand = -plow;
+//                    }
+//                    if(robot_orientation_fil>=(PI/2-t2) && robot_orientation_fil<=(PI/2+t2) && x_robot_position_fil<xedge && y_robot_position_fil>=goalieyedge) {
+//                        leftcommand = -plow;
+//                        rightcommand = -phigh;
+//                    }
+//                    if(robot_orientation_fil>=(PI/2-t2) && robot_orientation_fil<=(PI/2+t2) && x_robot_position_fil>=xedge) {
+//                        goaliereturn = 0;
+//                    }
+//
+
+//            m_usb_tx_string("L1 = ");
+//            m_usb_tx_int(breakBeam);
+//            m_usb_tx_string("  ");
+//            m_usb_tx_string(" L2= ");
+//            m_usb_tx_int(L2);
+//            m_usb_tx_string("  L3 = ");
+//            m_usb_tx_int(L3);
+//            m_usb_tx_string("  ");
+//            m_usb_tx_string(" L4 = ");
+//            m_usb_tx_int(L4);
+//            m_usb_tx_string("  ");
+//            m_usb_tx_string(" R1 = ");
+//            m_usb_tx_int(R1);
+//            m_usb_tx_string("  ");
+//            m_usb_tx_string(" R2 = ");
+//            m_usb_tx_int(R2);
+//            m_usb_tx_string("  ");
+//            m_usb_tx_string(" R3 = ");
+//            m_usb_tx_int(R3);
+//            m_usb_tx_string("  ");
+//            m_usb_tx_string(" R4 = ");
+//            m_usb_tx_int(R4);
+//            m_usb_tx_string("\n");
+//                        m_usb_tx_int((int)(robot_position[0])); //X position, whatever that means
+//
+//                        m_usb_tx_string("\t");
+//                        m_usb_tx_int((int)robot_position[1]); //Y position
+//                        m_usb_tx_string("\t");
+//                        m_usb_tx_int((int)(robot_orientation*127/6.3)); //Y position
+//                        m_usb_tx_string("\t");
+
