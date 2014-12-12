@@ -311,8 +311,8 @@ int main(void){
                     OppGoalSign = -1;
                     goal = RED;
                     goalSwitchBlink = 0;
-                    if(RX_ADDRESS == 0x1A){
-                        Aquaman = 1;}
+//                    if(RX_ADDRESS == 0x1A){
+//                        Aquaman = 1;}
                         m_wait(100);
                         red_LED(OFF);
                 } else if (!check(PIND, PIN3) && goalSwitchBlink) {
@@ -320,8 +320,8 @@ int main(void){
                     OppGoalSign = 1;
                     goal = BLUE;
                     goalSwitchBlink = 0;
-                    if(RX_ADDRESS == 0x1A){
-                        Aquaman = 1;}
+//                    if(RX_ADDRESS == 0x1A){
+//                        Aquaman = 1;}
                     m_wait(100);
                     blue_LED(OFF);
                 }
@@ -372,6 +372,10 @@ int main(void){
                     right_motor(rightcommand);
                 }
                 
+//                rightcommand = puckdirr;
+//                leftcommand = puckdirl;
+//                right_motor(rightcommand);
+//                left_motor(leftcommand);
                 
                 break;
                 
